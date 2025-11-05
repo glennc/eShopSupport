@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
     <PackageReference Include="Aspire.Hosting.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Microsoft.Playwright" />
@@ -25,14 +26,11 @@
     <ProjectReference Include="..\..\src\AppHost\AppHost.csproj" />
     <ProjectReference Include="..\..\src\ServiceDefaults\ServiceDefaults.csproj" />
   </ItemGroup>
-
+<!-- 
   <Target Name="InstallPlaywrightDeps" BeforeTargets="CoreBuild">
-    <PropertyGroup>
-      <_PowerShellExe>pwsh</_PowerShellExe>
-      <_PowerShellExe Condition="'$(OS)' == 'Windows_NT'">powershell</_PowerShellExe>
-      <_PlaywrightScript>$([System.IO.Path]::GetFullPath($(OutDir)))playwright.ps1</_PlaywrightScript>
-    </PropertyGroup>
-    <Exec Command="$(_PowerShellExe) -NoProfile -NoLogo -NonInteractive -ExecutionPolicy Unrestricted -Command '$(_PlaywrightScript) install chromium --with-deps'" />
-  </Target>
+    Removed explicit powershell script since I am using WSL. Likely need to 
+    add a better cross platform version of whatever it did.
+  </Target> 
+-->
 
 </Project>

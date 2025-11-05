@@ -24,10 +24,10 @@ var identityEndpoint = identityServer
     .GetEndpoint("https");
 
 // Use this if you want to use Ollama
-var chatCompletion = builder.AddOllama("chatcompletion").WithDataVolume();
+// var chatCompletion = builder.AddOllama("chatcompletion").WithDataVolume();
 
 // ... or use this if you want to use OpenAI (having also configured the API key in appsettings)
-//var chatCompletion = builder.AddConnectionString("chatcompletion");
+var chatCompletion = builder.AddConnectionString("chatcompletion");
 
 var storage = builder.AddAzureStorage("eshopsupport-storage");
 if (builder.Environment.IsDevelopment())
@@ -57,6 +57,12 @@ var backend = builder.AddProject<Backend>("backend")
     .WithReference(redis)
     .WithEnvironment("IdentityUrl", identityEndpoint)
     .WithEnvironment("ImportInitialDataDir", Path.Combine(builder.AppHostDirectory, "..", "..", "seeddata", isE2ETest ? "test" : "dev"));
+
+var agentService = builder.AddProject<AgentService>("agentservice")
+    .WithReference(backendDb)
+    .WithReference(chatCompletion)
+    .WithReference(vectorDb)
+    .WithReference(redis);
 
 var staffWebUi = builder.AddProject<StaffWebUI>("staffwebui")
     .WithExternalHttpEndpoints()
