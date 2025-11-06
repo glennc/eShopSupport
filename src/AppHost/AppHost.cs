@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration.Json;
+﻿using Aspire.Hosting.Azure;
+using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.Hosting;
 using Projects;
 
@@ -23,11 +24,13 @@ var identityServer = builder.AddProject<IdentityServer>("identity-server")
 var identityEndpoint = identityServer
     .GetEndpoint("https");
 
-// Use this if you want to use Ollama
-// var chatCompletion = builder.AddOllama("chatcompletion").WithDataVolume();
+// Azure AI Foundry setup
+var foundryName = builder.AddParameter("foundryName");
+var resourceGroup = builder.AddParameter("resourceGroup");
 
-// ... or use this if you want to use OpenAI (having also configured the API key in appsettings)
-var chatCompletion = builder.AddConnectionString("chatcompletion");
+var foundry = builder.AddAzureAIFoundry("foundry")
+    .AsExisting(foundryName, resourceGroup)
+    .AddDeployment("eShopSupport", AIFoundryModel.OpenAI.Gpt41);
 
 var storage = builder.AddAzureStorage("eshopsupport-storage");
 if (builder.Environment.IsDevelopment())
@@ -50,7 +53,7 @@ var redis = builder.AddRedis("redis");
 
 var backend = builder.AddProject<Backend>("backend")
     .WithReference(backendDb)
-    .WithReference(chatCompletion)
+    .WithReference(foundry)
     .WithReference(blobStorage)
     .WithReference(vectorDb)
     .WithReference(pythonInference)
@@ -60,7 +63,7 @@ var backend = builder.AddProject<Backend>("backend")
 
 var agentService = builder.AddProject<AgentService>("agentservice")
     .WithReference(backendDb)
-    .WithReference(chatCompletion)
+    .WithReference(foundry)
     .WithReference(vectorDb)
     .WithReference(redis);
 

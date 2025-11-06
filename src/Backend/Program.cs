@@ -2,6 +2,7 @@
 using eShopSupport.Backend.Data;
 using eShopSupport.Backend.Services;
 using eShopSupport.ServiceDefaults.Clients.PythonInference;
+using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
 using Microsoft.SemanticKernel.Embeddings;
@@ -28,7 +29,7 @@ builder.Services.AddScoped<TicketSummarizer>();
 builder.Services.AddHttpClient<PythonInferenceClient>(c => c.BaseAddress = new Uri("http://python-inference"));
 builder.AddAzureBlobClient("eshopsupport-blobs");
 
-builder.AddChatCompletionService("chatcompletion");
+builder.AddChatCompletionService("eShopSupport");
 builder.AddRedisClient("redis");
 
 JsonWebTokenHandler.DefaultInboundClaimTypeMap.Remove("sub");
