@@ -130,7 +130,7 @@ public static class TicketApi
             ticket.TicketType,
             ticket.TicketStatus,
             ticket.CustomerSatisfaction,
-            ticket.Messages.OrderBy(m => m.MessageId).Select(m => new TicketDetailsResultMessage(m.MessageId, m.CreatedAt, m.IsCustomerMessage, m.Text)).ToList()
+            ticket.Messages.OrderBy(m => m.MessageId).Select(m => new TicketDetailsResultMessage(m.MessageId, m.CreatedAt, m.IsCustomerMessage, m.Text, (ServiceDefaults.Clients.Backend.MessageType)m.MessageType)).ToList()
         ));
     }
 

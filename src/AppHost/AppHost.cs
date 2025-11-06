@@ -51,21 +51,22 @@ var pythonInference = builder.AddPythonUvicornApp("python-inference",
 
 var redis = builder.AddRedis("redis");
 
+var agentService = builder.AddProject<AgentService>("agentservice")
+    .WithReference(backendDb)
+    .WithReference(foundry)
+    .WithReference(vectorDb)
+    .WithReference(redis);
+
 var backend = builder.AddProject<Backend>("backend")
     .WithReference(backendDb)
     .WithReference(foundry)
     .WithReference(blobStorage)
     .WithReference(vectorDb)
     .WithReference(pythonInference)
+    .WithReference(agentService)
     .WithReference(redis)
     .WithEnvironment("IdentityUrl", identityEndpoint)
     .WithEnvironment("ImportInitialDataDir", Path.Combine(builder.AppHostDirectory, "..", "..", "seeddata", isE2ETest ? "test" : "dev"));
-
-var agentService = builder.AddProject<AgentService>("agentservice")
-    .WithReference(backendDb)
-    .WithReference(foundry)
-    .WithReference(vectorDb)
-    .WithReference(redis);
 
 var staffWebUi = builder.AddProject<StaffWebUI>("staffwebui")
     .WithExternalHttpEndpoints()

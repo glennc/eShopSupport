@@ -21,11 +21,22 @@ public class AppDbContext : DbContext
 
     public DbSet<Product> Products { get; set; }
 
+    public DbSet<AgentExecution> AgentExecutions { get; set; }
+
+    public DbSet<AgentTrace> AgentTraces { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<Ticket>().HasMany(t => t.Messages).WithOne().OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<Ticket>().HasOne(t => t.Product);
+
+        // Configure AgentExecution relationships
+        modelBuilder.Entity<AgentExecution>()
+            .HasMany(e => e.Traces)
+            .WithOne()
+            .HasForeignKey(t => t.AgentExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     public static async Task EnsureDbCreatedAsync(IServiceProvider services, string? initialImportDataDir)

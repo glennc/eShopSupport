@@ -64,6 +64,19 @@ public class StaffBackendClient(HttpClient http)
     {
         return http.GetFromJsonAsync<FindProductsResult[]>($"/api/products?searchText={HttpUtility.UrlEncode(searchText)}")!;
     }
+
+    public async Task<bool> TriggerTicketResearchAsync(int ticketId)
+    {
+        try
+        {
+            var response = await http.PostAsync($"/api/ticket/{ticketId}/research", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }
 
 public record ListTicketsRequest(TicketStatus? FilterByStatus, List<int>? FilterByCategoryIds, int? FilterByCustomerId, int StartIndex, int MaxResults, string? SortBy, bool? SortAscending);
@@ -79,7 +92,7 @@ public record TicketDetailsResult(
     TicketType TicketType, TicketStatus TicketStatus,
     int? CustomerSatisfaction, ICollection<TicketDetailsResultMessage> Messages);
 
-public record TicketDetailsResultMessage(int MessageId, DateTime CreatedAt, bool IsCustomerMessage, string MessageText);
+public record TicketDetailsResultMessage(int MessageId, DateTime CreatedAt, bool IsCustomerMessage, string MessageText, MessageType? MessageType = null);
 
 public record UpdateTicketDetailsRequest(int? ProductId, TicketType TicketType, TicketStatus TicketStatus);
 
@@ -121,6 +134,13 @@ public enum TicketType
     Idea,
     Complaint,
     Returns,
+}
+
+public enum MessageType
+{
+    Customer = 0,
+    Staff = 1,
+    AgentResearch = 2
 }
 
 public record CreateTicketRequest(

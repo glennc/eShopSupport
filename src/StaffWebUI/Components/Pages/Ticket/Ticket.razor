@@ -62,6 +62,34 @@
         ticket = await Backend.GetTicketDetailsAsync(TicketId);
 
         SubscriptionChannel = RedisChannel.Literal($"ticket:{TicketId}");
+
+        // Trigger agent research if not already done
+        TriggerResearchAsync();
+    }
+
+    private async void TriggerResearchAsync()
+    {
+        // Check if research already exists
+        if (ticket?.Messages.Any(m => m.MessageType == ServiceDefaults.Clients.Backend.MessageType.AgentResearch) == true)
+        {
+            return; // Research already exists
+        }
+
+        // Trigger research in the background
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1000); // Small delay to let page load
+            var success = await Backend.TriggerTicketResearchAsync(TicketId);
+            if (success)
+            {
+                // Refresh ticket to show research
+                await InvokeAsync(async () =>
+                {
+                    ticket = await Backend.GetTicketDetailsAsync(TicketId);
+                    StateHasChanged();
+                });
+            }
+        });
     }
 
     private void AcceptSuggestedReply(string suggestion)

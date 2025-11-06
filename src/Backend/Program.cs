@@ -1,4 +1,5 @@
 ﻿using eShopSupport.Backend.Api;
+using eShopSupport.Backend.Clients;
 using eShopSupport.Backend.Data;
 using eShopSupport.Backend.Services;
 using eShopSupport.ServiceDefaults.Clients.PythonInference;
@@ -27,6 +28,7 @@ builder.Services.AddScoped<ProductSemanticSearch>();
 builder.Services.AddScoped<ProductManualSemanticSearch>();
 builder.Services.AddScoped<TicketSummarizer>();
 builder.Services.AddHttpClient<PythonInferenceClient>(c => c.BaseAddress = new Uri("http://python-inference"));
+builder.Services.AddHttpClient<AgentServiceClient>(c => c.BaseAddress = new Uri("http://agentservice"));
 builder.AddAzureBlobClient("eshopsupport-blobs");
 
 builder.AddChatCompletionService("eShopSupport");
@@ -54,5 +56,6 @@ app.MapAssistantApiEndpoints();
 app.MapTicketApiEndpoints();
 app.MapTicketMessagingApiEndpoints();
 app.MapCatalogApiEndpoints();
+app.MapTicketResearchApiEndpoints();
 
 app.Run();
