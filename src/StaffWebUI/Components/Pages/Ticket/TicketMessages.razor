@@ -23,32 +23,54 @@ else
             </div>
         }
 
-        @foreach (var message in Ticket!.Messages)
+        @* AI Research Section - Always at top *@
+        @{
+            var researchMessage = Ticket!.Messages.FirstOrDefault(m => m.MessageType == ServiceDefaults.Clients.Backend.MessageType.AgentResearch);
+        }
+
+        @if (IsResearching)
         {
-            @if (message.MessageType == ServiceDefaults.Clients.Backend.MessageType.AgentResearch)
-            {
-                <div class="message agent-research">
-                    <div class="agent-research-header">
-                        <span class="agent-icon">🤖</span>
-                        <span class="agent-title">AI RESEARCH (Internal - Not sent to customer)</span>
-                        <span class="timestamp">@message.CreatedAt.ToShortTimeString()</span>
-                    </div>
-                    <div class="agent-research-content">
-                        <pre style="white-space: pre-wrap; font-family: inherit;">@message.MessageText</pre>
-                    </div>
+            <div class="message agent-research researching">
+                <div class="agent-research-header">
+                    <span class="agent-icon">🤖</span>
+                    <span class="agent-title">AI RESEARCH IN PROGRESS</span>
+                    <FluentProgressRing style="width: 20px; height: 20px;" />
                 </div>
-            }
-            else
-            {
-                <div class="message @(message.IsCustomerMessage ? "customer" : "support")">
-                    <div class="message-metadata">
-                        <span class="timestamp">@message.CreatedAt.ToShortDateString()</span>
-                        <span class="filler">by</span>
-                        <span class="sender">@(message.IsCustomerMessage ? Ticket.CustomerFullName : "Support")</span>
+                <div class="agent-research-content">
+                    <div class="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
                     </div>
-                    <div class="message-text">@message.MessageText</div>
+                    <p style="margin: 0; font-style: italic; color: #666;">Analyzing customer context, searching knowledge base, and preparing recommendations...</p>
                 </div>
-            }
+            </div>
+        }
+        else if (researchMessage != null)
+        {
+            <div class="message agent-research">
+                <div class="agent-research-header">
+                    <span class="agent-icon">🤖</span>
+                    <span class="agent-title">AI RESEARCH (Internal - Not sent to customer)</span>
+                    <span class="timestamp">@researchMessage.CreatedAt.ToShortTimeString()</span>
+                </div>
+                <div class="agent-research-content">
+                    <pre style="white-space: pre-wrap; font-family: inherit;">@researchMessage.MessageText</pre>
+                </div>
+            </div>
+        }
+
+        @* Customer and Staff Messages *@
+        @foreach (var message in Ticket!.Messages.Where(m => m.MessageType != ServiceDefaults.Clients.Backend.MessageType.AgentResearch))
+        {
+            <div class="message @(message.IsCustomerMessage ? "customer" : "support")">
+                <div class="message-metadata">
+                    <span class="timestamp">@message.CreatedAt.ToShortDateString()</span>
+                    <span class="filler">by</span>
+                    <span class="sender">@(message.IsCustomerMessage ? Ticket.CustomerFullName : "Support")</span>
+                </div>
+                <div class="message-text">@message.MessageText</div>
+            </div>
         }
     </div>
 }
@@ -56,4 +78,7 @@ else
 @code {
     [Parameter]
     public TicketDetailsResult? Ticket { get; set; }
+
+    [Parameter]
+    public bool IsResearching { get; set; }
 }

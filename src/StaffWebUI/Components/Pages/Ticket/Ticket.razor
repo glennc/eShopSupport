@@ -17,7 +17,7 @@
                 }
             </div>
             <div class="messages">
-                <TicketMessages Ticket="@ticket" />
+                <TicketMessages Ticket="@ticket" IsResearching="@isResearching" />
             </div>
             <div class="write-message">
                 <EditForm EditContext="@editContext" OnValidSubmit="@SendReplyAsync">
@@ -50,6 +50,7 @@
     private string? replyText;
     private FluentTextArea? replyTextArea;
     private bool isSending;
+    private bool isResearching;
 
     [Parameter]
     public int TicketId { get; set; }
@@ -75,20 +76,26 @@
             return; // Research already exists
         }
 
+        // Show research in progress
+        isResearching = true;
+        StateHasChanged();
+
         // Trigger research in the background
         _ = Task.Run(async () =>
         {
             await Task.Delay(1000); // Small delay to let page load
             var success = await Backend.TriggerTicketResearchAsync(TicketId);
-            if (success)
+
+            // Hide progress and refresh ticket
+            await InvokeAsync(async () =>
             {
-                // Refresh ticket to show research
-                await InvokeAsync(async () =>
+                isResearching = false;
+                if (success)
                 {
                     ticket = await Backend.GetTicketDetailsAsync(TicketId);
-                    StateHasChanged();
-                });
-            }
+                }
+                StateHasChanged();
+            });
         });
     }
 
