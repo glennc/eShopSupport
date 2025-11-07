@@ -229,18 +229,66 @@ public static class ResearchApi
 
     private static async Task<IResult> TriageTicketAsync(
         [FromBody] TicketTriageRequest request,
+        TriageAgent triageAgent,
         ResearchAgent researchAgent,
         ResponseDraftAgent draftAgent,
         AppDbContext dbContext,
-        ILogger<ResearchAgent> logger,
+        ILogger<TriageAgent> logger,
         CancellationToken cancellationToken)
     {
         try
         {
-            logger.LogInformation("Starting triage workflow for ticket {TicketId}", request.TicketId);
+            logger.LogInformation("Starting intelligent triage workflow for ticket {TicketId}", request.TicketId);
 
-            // Step 1: Research the ticket
-            logger.LogInformation("Step 1: Researching ticket {TicketId}", request.TicketId);
+            // Step 1: Perform initial triage analysis
+            logger.LogInformation("Step 1: Analyzing ticket {TicketId} with TriageAgent", request.TicketId);
+
+            var triageExecution = new AgentExecution
+            {
+                AgentName = "TriageAgent",
+                TicketId = request.TicketId,
+                StartedAt = DateTime.UtcNow,
+                Status = "Running"
+            };
+
+            dbContext.AgentExecutions.Add(triageExecution);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            TicketTriageResult triageResult;
+            try
+            {
+                triageResult = await triageAgent.TriageTicketAsync(request.TicketId, cancellationToken);
+
+                triageExecution.Status = "Completed";
+                triageExecution.CompletedAt = DateTime.UtcNow;
+                triageExecution.Traces.Add(new AgentTrace
+                {
+                    Timestamp = DateTime.UtcNow,
+                    TraceType = "Completion",
+                    Content = $"Triage completed: Type={triageResult.TicketType}, Priority={triageResult.PriorityScore}, Urgency={triageResult.UrgencyLevel}, Agent={triageResult.RecommendedAgent}",
+                    SequenceNumber = 1
+                });
+
+                await dbContext.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("Triage completed for ticket {TicketId}: {Type}, Priority {Priority}, Urgency {Urgency}",
+                    request.TicketId, triageResult.TicketType, triageResult.PriorityScore, triageResult.UrgencyLevel);
+            }
+            catch (Exception ex)
+            {
+                triageExecution.Status = "Failed";
+                triageExecution.CompletedAt = DateTime.UtcNow;
+                triageExecution.ErrorMessage = ex.Message;
+                await dbContext.SaveChangesAsync(cancellationToken);
+
+                logger.LogError(ex, "Triage failed for ticket {TicketId}", request.TicketId);
+                throw;
+            }
+
+            // Step 2: Route to appropriate specialist agent based on triage
+            // For now, we only have ResearchAgent, so all tickets go there
+            // In the future, we'll route based on triageResult.RecommendedAgent
+            logger.LogInformation("Step 2: Researching ticket {TicketId} (Recommended: {Agent})",
+                request.TicketId, triageResult.RecommendedAgent);
 
             var researchExecution = new AgentExecution
             {
@@ -278,12 +326,12 @@ public static class ResearchApi
                 researchExecution.ErrorMessage = ex.Message;
                 await dbContext.SaveChangesAsync(cancellationToken);
 
-                logger.LogError(ex, "Research failed during triage for ticket {TicketId}", request.TicketId);
+                logger.LogError(ex, "Research failed during triage workflow for ticket {TicketId}", request.TicketId);
                 throw;
             }
 
-            // Step 2: Generate draft response based on research
-            logger.LogInformation("Step 2: Generating draft for ticket {TicketId}", request.TicketId);
+            // Step 3: Generate draft response based on research
+            logger.LogInformation("Step 3: Generating draft for ticket {TicketId}", request.TicketId);
 
             var draftExecution = new AgentExecution
             {
@@ -336,14 +384,16 @@ public static class ResearchApi
                 draftExecution.ErrorMessage = ex.Message;
                 await dbContext.SaveChangesAsync(cancellationToken);
 
-                logger.LogError(ex, "Draft generation failed during triage for ticket {TicketId}", request.TicketId);
+                logger.LogError(ex, "Draft generation failed during triage workflow for ticket {TicketId}", request.TicketId);
 
-                // Return partial success - research worked, draft failed
+                // Return partial success - triage and research worked, draft failed
                 return Results.Ok(new TicketTriageResponse
                 {
                     Success = false,
+                    TriageExecutionId = triageExecution.AgentExecutionId,
                     ResearchExecutionId = researchExecution.AgentExecutionId,
                     DraftExecutionId = draftExecution.AgentExecutionId,
+                    Triage = triageResult,
                     Research = researchResult,
                     Draft = null,
                     ErrorMessage = $"Draft generation failed: {ex.Message}"
@@ -355,9 +405,11 @@ public static class ResearchApi
             return Results.Ok(new TicketTriageResponse
             {
                 Success = true,
+                TriageExecutionId = triageExecution.AgentExecutionId,
                 ResearchExecutionId = researchExecution.AgentExecutionId,
                 DraftExecutionId = draftExecution.AgentExecutionId,
                 DraftId = draftId,
+                Triage = triageResult,
                 Research = researchResult,
                 Draft = draftResult
             });
@@ -410,9 +462,11 @@ public class TicketTriageRequest
 public class TicketTriageResponse
 {
     public bool Success { get; set; }
+    public int TriageExecutionId { get; set; }
     public int ResearchExecutionId { get; set; }
     public int DraftExecutionId { get; set; }
     public int DraftId { get; set; }
+    public TicketTriageResult? Triage { get; set; }
     public TicketResearchResult? Research { get; set; }
     public Agents.DraftResponseResult? Draft { get; set; }
     public string? ErrorMessage { get; set; }

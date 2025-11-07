@@ -17,7 +17,7 @@
                 }
             </div>
             <div class="messages">
-                <TicketMessages Ticket="@ticket" IsResearching="@isResearching" DraftResponse="@draftResponse" DraftRejected="@draftRejected" OnApproveDraft="@ApproveDraftAsync" OnEditDraft="@EditDraft" OnRejectDraft="@ShowRejectDialog" OnRegenerateDraft="@RegenerateDraftAsync" />
+                <TicketMessages Ticket="@ticket" TriageInfo="@triageInfo" IsResearching="@isResearching" DraftResponse="@draftResponse" DraftRejected="@draftRejected" OnApproveDraft="@ApproveDraftAsync" OnEditDraft="@EditDraft" OnRejectDraft="@ShowRejectDialog" OnRegenerateDraft="@RegenerateDraftAsync" />
             </div>
             <div class="write-message">
                 <EditForm EditContext="@editContext" OnValidSubmit="@SendReplyAsync">
@@ -63,6 +63,7 @@
     private FluentTextArea? replyTextArea;
     private bool isSending;
     private bool isResearching;
+    private TriageInfo? triageInfo;
     private DraftResult? draftResponse;
     private int? draftId;
     private bool draftRejected;
@@ -111,6 +112,7 @@
                 if (result != null && result.Success)
                 {
                     ticket = await Backend.GetTicketDetailsAsync(TicketId);
+                    triageInfo = result.Triage;
                     draftResponse = result.Draft;
                     draftId = result.DraftId;
                 }

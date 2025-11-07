@@ -133,7 +133,7 @@ public static class TicketResearchApi
 
             logger.LogInformation("Triggering triage workflow for ticket {TicketId}", ticketId);
 
-            // Call AgentService to perform triage (research + draft)
+            // Call AgentService to perform triage (triage analysis + research + draft)
             var triageResponse = await agentServiceClient.RequestTicketTriageAsync(ticketId, cancellationToken);
 
             if (triageResponse == null || !triageResponse.Success)
@@ -141,6 +141,33 @@ public static class TicketResearchApi
                 logger.LogError("Failed to get triage result for ticket {TicketId}: {Error}",
                     ticketId, triageResponse?.ErrorMessage ?? "Unknown error");
                 return Results.Problem("Failed to complete triage", statusCode: 500);
+            }
+
+            // Save triage result as a message at the top
+            Message? triageMessage = null;
+            if (triageResponse.Triage != null)
+            {
+                // Check if triage message already exists
+                var existingTriage = ticket.Messages
+                    .FirstOrDefault(m => m.AgentExecutionId == triageResponse.TriageExecutionId);
+
+                if (existingTriage == null)
+                {
+                    triageMessage = new Message
+                    {
+                        TicketId = ticketId,
+                        MessageType = MessageType.AgentResearch, // Reusing this type for now
+                        CreatedAt = DateTime.UtcNow,
+                        Text = triageResponse.Triage.ToMarkdown(),
+                        AgentExecutionId = triageResponse.TriageExecutionId
+                    };
+
+                    dbContext.Messages.Add(triageMessage);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+
+                    logger.LogInformation("Triage analysis saved for ticket {TicketId} as message {MessageId}",
+                        ticketId, triageMessage.MessageId);
+                }
             }
 
             // Save research result as an AgentResearch message
@@ -163,15 +190,24 @@ public static class TicketResearchApi
                     ticketId, researchMessage.MessageId);
             }
 
-            logger.LogInformation("Triage completed for ticket {TicketId}. Research: {ResearchId}, Draft: {DraftId}",
-                ticketId, researchMessage?.MessageId, triageResponse.DraftId);
+            logger.LogInformation("Triage completed for ticket {TicketId}. Triage: Type={Type}, Priority={Priority}, Research: {ResearchId}, Draft: {DraftId}",
+                ticketId, triageResponse.Triage?.TicketType, triageResponse.Triage?.PriorityScore, researchMessage?.MessageId, triageResponse.DraftId);
 
             return Results.Ok(new
             {
                 success = true,
+                triage = triageResponse.Triage != null ? new
+                {
+                    ticketType = triageResponse.Triage.TicketType,
+                    priorityScore = triageResponse.Triage.PriorityScore,
+                    urgencyLevel = triageResponse.Triage.UrgencyLevel,
+                    recommendedAgent = triageResponse.Triage.RecommendedAgent,
+                    requiresEscalation = triageResponse.Triage.RequiresImmediateEscalation
+                } : null,
                 researchMessageId = researchMessage?.MessageId ?? existingResearch?.MessageId,
                 draftId = triageResponse.DraftId,
                 draft = triageResponse.Draft,
+                triageExecutionId = triageResponse.TriageExecutionId,
                 researchExecutionId = triageResponse.ResearchExecutionId,
                 draftExecutionId = triageResponse.DraftExecutionId
             });

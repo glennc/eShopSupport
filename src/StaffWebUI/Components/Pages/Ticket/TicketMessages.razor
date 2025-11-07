@@ -23,6 +23,49 @@ else
             </div>
         }
 
+        @* AI Triage Section - At the very top *@
+        @if (TriageInfo != null)
+        {
+            var urgencyClass = TriageInfo.UrgencyLevel.ToLower();
+            var urgencyEmoji = TriageInfo.UrgencyLevel switch
+            {
+                "Critical" => "🔴",
+                "High" => "🟠",
+                "Medium" => "🟡",
+                "Low" => "🟢",
+                _ => "⚪"
+            };
+
+            <div class="message agent-triage urgency-@urgencyClass">
+                <div class="agent-triage-header">
+                    <span class="agent-icon">🎯</span>
+                    <span class="agent-title">AI TRIAGE ANALYSIS</span>
+                </div>
+                <div class="agent-triage-content">
+                    <div class="triage-summary">
+                        <div class="triage-item">
+                            <strong>Type:</strong> @TriageInfo.TicketType
+                        </div>
+                        <div class="triage-item">
+                            <strong>Priority:</strong> @urgencyEmoji @TriageInfo.UrgencyLevel (@TriageInfo.PriorityScore/10)
+                        </div>
+                        @if (TriageInfo.RecommendedAgent != null)
+                        {
+                            <div class="triage-item">
+                                <strong>Recommended Agent:</strong> @TriageInfo.RecommendedAgent
+                            </div>
+                        }
+                        @if (TriageInfo.RequiresEscalation)
+                        {
+                            <div class="triage-item escalation-warning">
+                                ⚠️ <strong>ESCALATION REQUIRED</strong> - Needs immediate human attention
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
         @* AI Research Section - Always at top *@
         @{
             var researchMessage = Ticket!.Messages.FirstOrDefault(m => m.MessageType == ServiceDefaults.Clients.Backend.MessageType.AgentResearch);
@@ -127,6 +170,9 @@ else
 @code {
     [Parameter]
     public TicketDetailsResult? Ticket { get; set; }
+
+    [Parameter]
+    public TriageInfo? TriageInfo { get; set; }
 
     [Parameter]
     public bool IsResearching { get; set; }

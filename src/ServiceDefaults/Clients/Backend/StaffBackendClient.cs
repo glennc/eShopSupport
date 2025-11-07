@@ -197,11 +197,20 @@ public record CreateTicketRequest(
 
 public record TicketTriageResult(
     bool Success,
+    TriageInfo? Triage,
     int? ResearchMessageId,
     int DraftId,
     DraftResult? Draft,
+    int TriageExecutionId,
     int ResearchExecutionId,
     int DraftExecutionId);
+
+public record TriageInfo(
+    string TicketType,
+    int PriorityScore,
+    string UrgencyLevel,
+    string? RecommendedAgent,
+    bool RequiresEscalation);
 
 public record DraftResult(
     string DraftContent,

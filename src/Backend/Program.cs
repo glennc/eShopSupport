@@ -31,7 +31,7 @@ builder.Services.AddHttpClient<PythonInferenceClient>(c => c.BaseAddress = new U
 builder.Services.AddHttpClient<AgentServiceClient>(c =>
 {
     c.BaseAddress = new Uri("http://agentservice");
-    c.Timeout = TimeSpan.FromSeconds(30); // Agent processing can take time
+    c.Timeout = TimeSpan.FromMinutes(5); // Triage workflow runs 3 agents sequentially
 });
 builder.AddAzureBlobClient("eshopsupport-blobs");
 

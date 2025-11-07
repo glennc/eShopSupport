@@ -316,3 +316,92 @@ html.dark-mode .message.agent-draft-rejected {
     background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
     border-color: #f87171;
 }
+
+/* Agent Triage Styles */
+.message.agent-triage {
+    align-self: stretch;
+    max-width: 100%;
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    border: 2px solid #9333ea;
+    border-radius: calc(var(--layer-corner-radius)* 3px);
+    padding: 1rem;
+    margin: 1rem 0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+html.dark-mode .message.agent-triage {
+    background: linear-gradient(135deg, #581c87 0%, #6b21a8 100%);
+    border-color: #c084fc;
+}
+
+.agent-triage-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #9333ea;
+}
+
+html.dark-mode .agent-triage-header {
+    border-bottom-color: #c084fc;
+}
+
+.agent-triage-content {
+    color: #581c87;
+    line-height: 1.6;
+}
+
+html.dark-mode .agent-triage-content {
+    color: #f3e8ff;
+}
+
+.triage-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.triage-item {
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: calc(var(--layer-corner-radius)* 2px);
+}
+
+html.dark-mode .triage-item {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.triage-item strong {
+    margin-right: 0.5rem;
+}
+
+.escalation-warning {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
+    color: #991b1b;
+    font-weight: 600;
+}
+
+html.dark-mode .escalation-warning {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #f87171;
+    color: #fca5a5;
+}
+
+/* Urgency-based border colors */
+.message.agent-triage.urgency-critical {
+    border-color: #ef4444;
+}
+
+.message.agent-triage.urgency-high {
+    border-color: #f97316;
+}
+
+.message.agent-triage.urgency-medium {
+    border-color: #eab308;
+}
+
+.message.agent-triage.urgency-low {
+    border-color: #22c55e;
+}

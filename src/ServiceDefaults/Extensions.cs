@@ -21,8 +21,14 @@ public static class Extensions
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Turn on resilience by default
-            http.AddStandardResilienceHandler();
+            // Turn on resilience by default with extended timeouts for agent workflows
+            http.AddStandardResilienceHandler(options =>
+            {
+                // Extend timeouts for long-running agent operations (triage workflow)
+                options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(5);
+                options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+                options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(10); // Must be >= 2x attempt timeout
+            });
 
             // Turn on service discovery by default
             http.AddServiceDiscovery();

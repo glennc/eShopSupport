@@ -15,6 +15,7 @@ builder.AddChatCompletionService("eShopSupport");
 builder.AddNpgsqlDbContext<AppDbContext>("backenddb");
 
 // Register agents
+builder.Services.AddScoped<TriageAgent>();
 builder.Services.AddScoped<ResearchAgent>();
 builder.Services.AddScoped<ResponseDraftAgent>();
 

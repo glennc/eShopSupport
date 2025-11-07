@@ -112,12 +112,74 @@ public class TicketResearchResult
 public class TicketTriageResponse
 {
     public bool Success { get; set; }
+    public int TriageExecutionId { get; set; }
     public int ResearchExecutionId { get; set; }
     public int DraftExecutionId { get; set; }
     public int DraftId { get; set; }
+    public TicketTriageResult? Triage { get; set; }
     public TicketResearchResult? Research { get; set; }
     public DraftResponseResult? Draft { get; set; }
     public string? ErrorMessage { get; set; }
+}
+
+public class TicketTriageResult
+{
+    public required string TicketType { get; set; }
+    public required int PriorityScore { get; set; }
+    public required string UrgencyLevel { get; set; }
+    public required string ClassificationRationale { get; set; }
+    public List<SimilarTicketInfo> SimilarTickets { get; set; } = new();
+    public string? RecommendedAgent { get; set; }
+    public List<string> RecommendedNextSteps { get; set; } = new();
+    public bool RequiresImmediateEscalation { get; set; }
+
+    public string ToMarkdown()
+    {
+        var urgencyEmoji = UrgencyLevel switch
+        {
+            "Critical" => "🔴",
+            "High" => "🟠",
+            "Medium" => "🟡",
+            "Low" => "🟢",
+            _ => "⚪"
+        };
+
+        var nextStepsText = RecommendedNextSteps.Count > 0
+            ? string.Join("\n", RecommendedNextSteps.Select(s => $"- {s}"))
+            : "- Proceed with standard research and response";
+
+        var similarTicketsText = SimilarTickets.Count > 0
+            ? string.Join("\n", SimilarTickets.Select(t => $"- **Ticket #{t.TicketId}**: {t.Summary} (Resolved: {t.Resolution})"))
+            : "No similar tickets found.";
+
+        var escalationNote = RequiresImmediateEscalation
+            ? "\n\n⚠️ **ESCALATION REQUIRED**: This ticket needs immediate human attention."
+            : "";
+
+        return $"""
+            ## 🎯 Triage Analysis
+
+            **Type**: {TicketType}
+            **Priority**: {urgencyEmoji} {UrgencyLevel} (Score: {PriorityScore}/10)
+            **Recommended Agent**: {RecommendedAgent ?? "Research (default)"}
+
+            ### Classification Rationale
+            {ClassificationRationale}
+
+            ### Similar Resolved Tickets
+            {similarTicketsText}
+
+            ### Recommended Next Steps
+            {nextStepsText}{escalationNote}
+            """;
+    }
+}
+
+public class SimilarTicketInfo
+{
+    public required int TicketId { get; set; }
+    public required string Summary { get; set; }
+    public string? Resolution { get; set; }
 }
 
 public class DraftResponseResult
