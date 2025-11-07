@@ -17,7 +17,7 @@
                 }
             </div>
             <div class="messages">
-                <TicketMessages Ticket="@ticket" IsResearching="@isResearching" />
+                <TicketMessages Ticket="@ticket" IsResearching="@isResearching" DraftResponse="@draftResponse" DraftRejected="@draftRejected" OnApproveDraft="@ApproveDraftAsync" OnEditDraft="@EditDraft" OnRejectDraft="@ShowRejectDialog" OnRegenerateDraft="@RegenerateDraftAsync" />
             </div>
             <div class="write-message">
                 <EditForm EditContext="@editContext" OnValidSubmit="@SendReplyAsync">
@@ -43,6 +43,18 @@
     </FluentSplitter>
 </div>
 
+<FluentDialog @ref="rejectDialog" @bind-Hidden="@hideRejectDialog" Modal="true" TrapFocus="true">
+    <DialogTitle>Reject Draft Response</DialogTitle>
+    <DialogContent>
+        <p>Why are you rejecting this draft? (Optional)</p>
+        <FluentTextArea @bind-Value="@rejectionReason" Placeholder="e.g., Too formal, Missing key details, Incorrect information..." style="width: 100%; min-height: 100px;" />
+    </DialogContent>
+    <DialogFooter>
+        <FluentButton Appearance="Appearance.Accent" OnClick="@ConfirmRejectAsync">Reject</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="@(() => hideRejectDialog = true)">Cancel</FluentButton>
+    </DialogFooter>
+</FluentDialog>
+
 @code {
     private readonly Icon sendIcon = new Icons.Regular.Size20.Mail();
     private EditContext editContext;
@@ -51,6 +63,12 @@
     private FluentTextArea? replyTextArea;
     private bool isSending;
     private bool isResearching;
+    private DraftResult? draftResponse;
+    private int? draftId;
+    private bool draftRejected;
+    private FluentDialog? rejectDialog;
+    private bool hideRejectDialog = true;
+    private string? rejectionReason;
 
     [Parameter]
     public int TicketId { get; set; }
@@ -64,35 +82,37 @@
 
         SubscriptionChannel = RedisChannel.Literal($"ticket:{TicketId}");
 
-        // Trigger agent research if not already done
-        TriggerResearchAsync();
+        // Trigger agent triage (research + draft) if not already done
+        TriggerTriageAsync();
     }
 
-    private async void TriggerResearchAsync()
+    private async void TriggerTriageAsync()
     {
-        // Check if research already exists
+        // Check if triage already exists
         if (ticket?.Messages.Any(m => m.MessageType == ServiceDefaults.Clients.Backend.MessageType.AgentResearch) == true)
         {
-            return; // Research already exists
+            return; // Triage already exists
         }
 
         // Show research in progress
         isResearching = true;
         StateHasChanged();
 
-        // Trigger research in the background
+        // Trigger triage in the background
         _ = Task.Run(async () =>
         {
             await Task.Delay(1000); // Small delay to let page load
-            var success = await Backend.TriggerTicketResearchAsync(TicketId);
+            var result = await Backend.TriggerTicketTriageAsync(TicketId);
 
-            // Hide progress and refresh ticket
+            // Hide progress and update state
             await InvokeAsync(async () =>
             {
                 isResearching = false;
-                if (success)
+                if (result != null && result.Success)
                 {
                     ticket = await Backend.GetTicketDetailsAsync(TicketId);
+                    draftResponse = result.Draft;
+                    draftId = result.DraftId;
                 }
                 StateHasChanged();
             });
@@ -126,6 +146,87 @@
         StateHasChanged();
         await Task.Delay(1000);
         isSending = false;
+    }
+
+    private async Task ApproveDraftAsync()
+    {
+        if (draftResponse == null) return;
+
+        // Send the draft as-is to the customer
+        isSending = true;
+        StateHasChanged();
+
+        await Backend.SendTicketMessageAsync(TicketId, new(draftResponse.DraftContent));
+
+        // Clear draft and refresh ticket
+        draftResponse = null;
+        draftId = null;
+        ticket = await Backend.GetTicketDetailsAsync(TicketId);
+
+        await Task.Delay(1000);
+        isSending = false;
+        StateHasChanged();
+    }
+
+    private void EditDraft()
+    {
+        if (draftResponse == null) return;
+
+        // Copy draft to textbox for editing
+        replyText = draftResponse.DraftContent;
+        editContext.NotifyFieldChanged(FieldIdentifier.Create(() => replyText));
+
+        // Clear draft (it's now in the textbox)
+        draftResponse = null;
+        StateHasChanged();
+
+        // Focus the textbox
+        replyTextArea?.FocusAsync();
+    }
+
+    private void ShowRejectDialog()
+    {
+        hideRejectDialog = false;
+        rejectionReason = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmRejectAsync()
+    {
+        if (draftId == null) return;
+
+        hideRejectDialog = true;
+
+        // Persist rejection in database
+        var success = await Backend.RejectDraftAsync(draftId.Value, rejectionReason);
+
+        if (success)
+        {
+            // Clear draft from UI and mark as rejected
+            draftResponse = null;
+            draftRejected = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RegenerateDraftAsync()
+    {
+        isResearching = true;
+        draftRejected = false;
+        StateHasChanged();
+
+        var newDraft = await Backend.RegenerateDraftAsync(TicketId);
+
+        isResearching = false;
+
+        if (newDraft != null)
+        {
+            draftResponse = newDraft;
+            // Get the new draft ID by refreshing ticket data
+            ticket = await Backend.GetTicketDetailsAsync(TicketId);
+        }
+
+        StateHasChanged();
     }
 
     protected override async Task OnRedisNotificationAsync(RedisValue value)

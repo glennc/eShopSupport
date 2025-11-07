@@ -1,8 +1,8 @@
-using System.Text;
+using eShopSupport.AgentService.ContextProviders;
 using eShopSupport.AgentService.Models;
 using eShopSupport.AgentService.Tools;
 using eShopSupport.Backend.Data;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 namespace eShopSupport.AgentService.Agents;
@@ -30,18 +30,6 @@ public class ResearchAgent
     {
         _logger.LogInformation("Starting research for ticket {TicketId}", ticketId);
 
-        // Get ticket details
-        var ticket = await _dbContext.Tickets
-            .Include(t => t.Messages)
-            .Include(t => t.Customer)
-            .Include(t => t.Product)
-            .FirstOrDefaultAsync(t => t.TicketId == ticketId, cancellationToken);
-
-        if (ticket == null)
-        {
-            throw new ArgumentException($"Ticket {ticketId} not found", nameof(ticketId));
-        }
-
         // Prepare tools for the agent
         var tools = new TicketTools(_dbContext);
         var availableTools = new[]
@@ -52,83 +40,67 @@ public class ResearchAgent
             AIFunctionFactory.Create(tools.GetTicketDetails)
         };
 
-        // Build conversation context
-        var customerMessages = ticket.Messages
-            .Where(m => m.MessageType == MessageType.Customer)
-            .OrderBy(m => m.CreatedAt)
-            .Select(m => m.Text)
-            .ToList();
+        // Create the agent with instructions, tools, and context provider
+        var agent = _chatClient.CreateAIAgent(new ChatClientAgentOptions
+        {
+            Name = "research_agent",
+            Instructions = """
+                You are a highly skilled AI research assistant helping support staff at AdventureWorks.
 
-        var latestCustomerMessage = customerMessages.LastOrDefault() ?? "No customer message";
-        var conversationHistory = string.Join("\n", customerMessages.Select((m, i) => $"Message {i + 1}: {m}"));
+                Your task is to research a support ticket thoroughly and provide comprehensive context to help the support agent respond effectively.
 
-        // Create system prompt for research
-        var systemPrompt = $$"""
-            You are a highly skilled AI research assistant helping support staff at AdventureWorks.
+                **Your Research Goals:**
+                1. Use available tools to gather customer history, similar past tickets, and product information
+                2. Synthesize findings into clear, actionable insights
+                3. Suggest specific next steps for the support agent
+                4. Draft a professional, empathetic response the agent can use
 
-            Your task is to research a support ticket thoroughly and provide comprehensive context to help the support agent respond effectively.
+                **Available Tools:**
+                - GetCustomerContext: Get customer account details and past ticket history
+                - SearchTicketHistory: Find similar resolved tickets for reference
+                - GetProductInfo: Get detailed product information
+                - GetTicketDetails: Get full ticket conversation
 
-            **Ticket Information:**
-            - Ticket ID: {{ticketId}}
-            - Customer: {{ticket.Customer.FullName}} (ID: {{ticket.CustomerId}})
-            - Product: {{(ticket.Product != null ? $"{ticket.Product.Brand} {ticket.Product.Model}" : "Not specified")}} {{(ticket.ProductId.HasValue ? $"(ID: {ticket.ProductId})" : "")}}
-            - Status: {{ticket.TicketStatus}}
-            - Created: {{ticket.CreatedAt:yyyy-MM-dd HH:mm}}
+                **Instructions:**
+                First, think about what information would be most helpful. Then use the tools to gather that information.
+                After gathering information, provide your findings in this exact JSON structure:
 
-            **Customer's Issue:**
-            {{latestCustomerMessage}}
+                {
+                  "customerContext": "Brief summary of customer account, history, and sentiment",
+                  "relevantKnowledge": "Key findings from similar tickets, product info, and knowledge base",
+                  "suggestedActions": ["Action 1", "Action 2", "Action 3"],
+                  "toolCallsMade": ["List of tools you called"]
+                }
 
-            **Full Conversation History:**
-            {{conversationHistory}}
-
-            **Your Research Goals:**
-            1. Use available tools to gather customer history, similar past tickets, and product information
-            2. Synthesize findings into clear, actionable insights
-            3. Suggest specific next steps for the support agent
-            4. Draft a professional, empathetic response the agent can use
-
-            **Available Tools:**
-            - GetCustomerContext: Get customer account details and past ticket history
-            - SearchTicketHistory: Find similar resolved tickets for reference
-            - GetProductInfo: Get detailed product information
-            - GetTicketDetails: Get full ticket conversation
-
-            **Instructions:**
-            First, think about what information would be most helpful. Then use the tools to gather that information.
-            After gathering information, provide your findings in this exact JSON structure:
-
+                Be thorough in your research but concise in your findings. Focus on actionable insights.
+                Note: Do NOT generate a draft response - that will be handled by a specialized agent.
+                """,
+            ChatOptions = new ChatOptions
             {
-              "customerContext": "Brief summary of customer account, history, and sentiment",
-              "relevantKnowledge": "Key findings from similar tickets, product info, and knowledge base",
-              "suggestedActions": ["Action 1", "Action 2", "Action 3"],
-              "draftResponse": "A professional, empathetic draft response addressing the customer's issue",
-              "toolCallsMade": ["List of tools you called"]
-            }
+                Tools = availableTools.Cast<AITool>().ToList(),
+                Temperature = 0.3f,
+                ResponseFormat = ChatResponseFormat.Json,
+                AdditionalProperties = new() { ["seed"] = 0 }
+            },
+            // Inject ticket context dynamically
+            AIContextProviderFactory = _ => new TicketContextProvider(_dbContext, ticketId)
+        });
 
-            Be thorough in your research but concise in your findings. Focus on actionable insights.
-            """;
+        _logger.LogInformation("Created agent with {ToolCount} tools available", availableTools.Length);
 
-        var messages = new List<ChatMessage>
-        {
-            new(ChatRole.System, systemPrompt),
-            new(ChatRole.User, "Please research this ticket thoroughly and provide your findings in the required JSON format.")
-        };
+        // Create a new thread for this research session
+        var thread = agent.GetNewThread();
 
-        // Execute research with tools
-        var chatOptions = new ChatOptions
-        {
-            Temperature = 0.3f,
-            Tools = availableTools.Cast<AITool>().ToList(),
-            ResponseFormat = ChatResponseFormat.Json,
-            AdditionalProperties = new() { ["seed"] = 0 }
-        };
+        // Execute the agent
+        _logger.LogInformation("Executing agent for ticket {TicketId}", ticketId);
 
-        _logger.LogInformation("Calling LLM for research with {ToolCount} tools available", availableTools.Length);
+        var response = await agent.RunAsync(
+            "Please research this ticket thoroughly and provide your findings in the required JSON format.",
+            thread);
 
-        var response = await _chatClient.GetResponseAsync(messages, chatOptions, cancellationToken);
         var responseText = response.ToString();
 
-        _logger.LogInformation("Received response from LLM: {Length} characters", responseText.Length);
+        _logger.LogInformation("Received response from agent: {Length} characters", responseText.Length);
 
         // Parse the structured response
         try
@@ -159,7 +131,6 @@ public class ResearchAgent
                     "1. Review the raw research output",
                     "2. Manually investigate the issue"
                 },
-                DraftResponse = "Thank you for contacting us. We're looking into your issue and will get back to you shortly.",
                 ToolCallsMade = new List<string> { "Error occurred during research" }
             };
         }

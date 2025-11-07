@@ -16,6 +16,7 @@ builder.AddNpgsqlDbContext<AppDbContext>("backenddb");
 
 // Register agents
 builder.Services.AddScoped<ResearchAgent>();
+builder.Services.AddScoped<ResponseDraftAgent>();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();

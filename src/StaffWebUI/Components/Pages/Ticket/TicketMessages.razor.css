@@ -223,3 +223,96 @@ html.dark-mode .typing-indicator span {
         opacity: 1;
     }
 }
+
+/* Agent Draft Response Styles */
+.message.agent-draft {
+    align-self: stretch;
+    max-width: 100%;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 2px solid #16a34a;
+    border-radius: calc(var(--layer-corner-radius)* 3px);
+    padding: 1rem;
+    margin: 1rem 0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+html.dark-mode .message.agent-draft {
+    background: linear-gradient(135deg, #14532d 0%, #166534 100%);
+    border-color: #4ade80;
+}
+
+.agent-draft-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #16a34a;
+}
+
+html.dark-mode .agent-draft-header {
+    border-bottom-color: #4ade80;
+}
+
+.agent-draft-header .confidence {
+    margin-left: auto;
+    font-weight: 600;
+    color: #15803d;
+    font-size: 0.875rem;
+}
+
+html.dark-mode .agent-draft-header .confidence {
+    color: #86efac;
+}
+
+.agent-draft-content {
+    color: #14532d;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+html.dark-mode .agent-draft-content {
+    color: #dcfce7;
+}
+
+.draft-text {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: calc(var(--layer-corner-radius)* 2px);
+    margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+}
+
+html.dark-mode .draft-text {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.draft-rationale {
+    font-size: 0.875rem;
+    font-style: italic;
+    opacity: 0.8;
+    padding: 0.5rem;
+}
+
+.agent-draft-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Agent Draft Rejected State */
+.message.agent-draft-rejected {
+    align-self: stretch;
+    max-width: 100%;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border: 2px solid #ef4444;
+    border-radius: calc(var(--layer-corner-radius)* 3px);
+    padding: 1rem;
+    margin: 1rem 0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+html.dark-mode .message.agent-draft-rejected {
+    background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+    border-color: #f87171;
+}

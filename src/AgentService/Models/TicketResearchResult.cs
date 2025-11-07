@@ -21,11 +21,6 @@ public class TicketResearchResult
     public required List<string> SuggestedActions { get; set; }
 
     /// <summary>
-    /// AI-generated draft response that staff can edit and send
-    /// </summary>
-    public required string DraftResponse { get; set; }
-
-    /// <summary>
     /// List of tool calls made during research (for transparency)
     /// </summary>
     public List<string> ToolCallsMade { get; set; } = new();
@@ -46,9 +41,6 @@ public class TicketResearchResult
 
             ## ✅ Suggested Actions
             {suggestedActionsText}
-
-            ## ✍️ Draft Response
-            {DraftResponse}
             """;
     }
 }

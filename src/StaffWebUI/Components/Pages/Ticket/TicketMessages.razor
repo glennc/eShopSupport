@@ -60,6 +60,55 @@ else
             </div>
         }
 
+        @* AI Draft Response Section *@
+        @if (DraftResponse != null)
+        {
+            <div class="message agent-draft">
+                <div class="agent-draft-header">
+                    <span class="agent-icon">✍️</span>
+                    <span class="agent-title">AI DRAFT RESPONSE</span>
+                    <span class="confidence">Confidence: @((DraftResponse.Confidence * 100).ToString("F0"))%</span>
+                </div>
+                <div class="agent-draft-content">
+                    <div class="draft-text">@DraftResponse.DraftContent</div>
+                    @if (!string.IsNullOrEmpty(DraftResponse.Rationale))
+                    {
+                        <div class="draft-rationale">
+                            <strong>Rationale:</strong> @DraftResponse.Rationale
+                        </div>
+                    }
+                </div>
+                <div class="agent-draft-actions">
+                    <FluentButton Appearance="Appearance.Accent" IconStart="@(new Icons.Regular.Size20.Send())" OnClick="@OnApproveDraft">
+                        Approve & Send
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.Edit())" OnClick="@OnEditDraft">
+                        Edit
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Lightweight" IconStart="@(new Icons.Regular.Size20.Dismiss())" OnClick="@OnRejectDraft">
+                        Reject
+                    </FluentButton>
+                </div>
+            </div>
+        }
+        else if (DraftRejected)
+        {
+            <div class="message agent-draft-rejected">
+                <div class="agent-draft-header">
+                    <span class="agent-icon">❌</span>
+                    <span class="agent-title">DRAFT REJECTED</span>
+                </div>
+                <div class="agent-draft-content">
+                    <p>The draft response was rejected. You can generate a new one or write your own response.</p>
+                </div>
+                <div class="agent-draft-actions">
+                    <FluentButton Appearance="Appearance.Accent" IconStart="@(new Icons.Regular.Size20.ArrowSync())" OnClick="@OnRegenerateDraft">
+                        Generate New Draft
+                    </FluentButton>
+                </div>
+            </div>
+        }
+
         @* Customer and Staff Messages *@
         @foreach (var message in Ticket!.Messages.Where(m => m.MessageType != ServiceDefaults.Clients.Backend.MessageType.AgentResearch))
         {
@@ -81,4 +130,22 @@ else
 
     [Parameter]
     public bool IsResearching { get; set; }
+
+    [Parameter]
+    public DraftResult? DraftResponse { get; set; }
+
+    [Parameter]
+    public bool DraftRejected { get; set; }
+
+    [Parameter]
+    public EventCallback OnApproveDraft { get; set; }
+
+    [Parameter]
+    public EventCallback OnEditDraft { get; set; }
+
+    [Parameter]
+    public EventCallback OnRejectDraft { get; set; }
+
+    [Parameter]
+    public EventCallback OnRegenerateDraft { get; set; }
 }

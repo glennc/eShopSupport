@@ -25,6 +25,8 @@ public class AppDbContext : DbContext
 
     public DbSet<AgentTrace> AgentTraces { get; set; }
 
+    public DbSet<DraftResponse> DraftResponses { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

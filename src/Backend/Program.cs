@@ -28,7 +28,11 @@ builder.Services.AddScoped<ProductSemanticSearch>();
 builder.Services.AddScoped<ProductManualSemanticSearch>();
 builder.Services.AddScoped<TicketSummarizer>();
 builder.Services.AddHttpClient<PythonInferenceClient>(c => c.BaseAddress = new Uri("http://python-inference"));
-builder.Services.AddHttpClient<AgentServiceClient>(c => c.BaseAddress = new Uri("http://agentservice"));
+builder.Services.AddHttpClient<AgentServiceClient>(c =>
+{
+    c.BaseAddress = new Uri("http://agentservice");
+    c.Timeout = TimeSpan.FromSeconds(30); // Agent processing can take time
+});
 builder.AddAzureBlobClient("eshopsupport-blobs");
 
 builder.AddChatCompletionService("eShopSupport");

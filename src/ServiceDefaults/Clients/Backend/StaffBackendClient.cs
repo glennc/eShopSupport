@@ -77,6 +77,54 @@ public class StaffBackendClient(HttpClient http)
             return false;
         }
     }
+
+    public async Task<TicketTriageResult?> TriggerTicketTriageAsync(int ticketId)
+    {
+        try
+        {
+            var response = await http.PostAsync($"/api/ticket/{ticketId}/triage", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<TicketTriageResult>();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> RejectDraftAsync(int draftId, string? reason = null)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync($"/api/draft/{draftId}/reject", new { Reason = reason });
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<DraftResult?> RegenerateDraftAsync(int ticketId)
+    {
+        try
+        {
+            var response = await http.PostAsync($"/api/ticket/{ticketId}/draft/regenerate", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+            var result = await response.Content.ReadFromJsonAsync<RegenerateDraftResult>();
+            return result?.Draft;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
 
 public record ListTicketsRequest(TicketStatus? FilterByStatus, List<int>? FilterByCategoryIds, int? FilterByCustomerId, int StartIndex, int MaxResults, string? SortBy, bool? SortAscending);
@@ -146,3 +194,21 @@ public enum MessageType
 public record CreateTicketRequest(
     string? ProductName,
     string Message);
+
+public record TicketTriageResult(
+    bool Success,
+    int? ResearchMessageId,
+    int DraftId,
+    DraftResult? Draft,
+    int ResearchExecutionId,
+    int DraftExecutionId);
+
+public record DraftResult(
+    string DraftContent,
+    double Confidence,
+    string? Rationale);
+
+public record RegenerateDraftResult(
+    bool Success,
+    int DraftId,
+    DraftResult? Draft);

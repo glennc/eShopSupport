@@ -18,7 +18,10 @@ builder.Services.AddRazorComponents()
 builder.Services.AddFluentUIComponents();
 
 builder.Services.AddHttpClient<StaffBackendClient>(client =>
-    client.BaseAddress = new Uri("http://backend/")).AddAuthToken();
+{
+    client.BaseAddress = new Uri("http://backend/");
+    client.Timeout = TimeSpan.FromSeconds(30); // Backend calls may take time due to agent processing
+}).AddAuthToken();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorization();
