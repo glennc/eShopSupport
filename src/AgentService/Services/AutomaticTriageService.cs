@@ -2,6 +2,7 @@ using eShopSupport.AgentService.Agents;
 using eShopSupport.AgentService.Models;
 using eShopSupport.Backend.Data;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 using TicketStatus = eShopSupport.ServiceDefaults.Clients.Backend.TicketStatus;
 using MessageType = eShopSupport.Backend.Data.MessageType;
 
@@ -11,14 +12,17 @@ public class AutomaticTriageService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AutomaticTriageService> _logger;
+    private readonly IConnectionMultiplexer _redis;
     private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(30);
 
     public AutomaticTriageService(
         IServiceProvider serviceProvider,
-        ILogger<AutomaticTriageService> logger)
+        ILogger<AutomaticTriageService> logger,
+        IConnectionMultiplexer redis)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _redis = redis;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -52,7 +56,14 @@ public class AutomaticTriageService : BackgroundService
 
         if (settings == null || !settings.AutomaticTriageEnabled)
         {
-            // Auto-triage is disabled, skip processing
+            // Auto-triage is disabled, ensure status is Idle
+            if (settings != null && settings.CurrentStatus != "Idle")
+            {
+                settings.CurrentStatus = "Idle";
+                settings.CurrentActivity = null;
+                settings.CurrentActivityStarted = null;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
             return;
         }
 
@@ -71,6 +82,12 @@ public class AutomaticTriageService : BackgroundService
         {
             _logger.LogInformation("Found {Count} untriaged tickets to process", untriagedTickets.Count);
 
+            // Update status to Running
+            settings.CurrentStatus = "Running";
+            settings.LastRunTime = DateTime.UtcNow;
+            settings.TicketsProcessedLastRun = 0;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
             foreach (var ticketId in untriagedTickets)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -80,12 +97,45 @@ public class AutomaticTriageService : BackgroundService
 
                 try
                 {
+                    // Update current activity
+                    settings.CurrentStatus = "Processing";
+                    settings.CurrentActivity = $"Processing ticket #{ticketId}";
+                    settings.CurrentActivityStarted = DateTime.UtcNow;
+                    await dbContext.SaveChangesAsync(cancellationToken);
+
                     await TriageTicketAsync(ticketId, cancellationToken);
+
+                    // Increment processed count
+                    settings.TicketsProcessedLastRun++;
+                    settings.TotalTicketsProcessed++;
+                    await dbContext.SaveChangesAsync(cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to triage ticket {TicketId}", ticketId);
+
+                    // Update status to Error
+                    settings.CurrentStatus = "Error";
+                    settings.CurrentActivity = $"Error processing ticket #{ticketId}: {ex.Message}";
+                    await dbContext.SaveChangesAsync(cancellationToken);
                 }
+            }
+
+            // Set back to Idle after processing
+            settings.CurrentStatus = "Idle";
+            settings.CurrentActivity = null;
+            settings.CurrentActivityStarted = null;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            // No tickets to process, ensure status is Idle
+            if (settings.CurrentStatus != "Idle")
+            {
+                settings.CurrentStatus = "Idle";
+                settings.CurrentActivity = null;
+                settings.CurrentActivityStarted = null;
+                await dbContext.SaveChangesAsync(cancellationToken);
             }
         }
     }
@@ -161,6 +211,20 @@ public class AutomaticTriageService : BackgroundService
         await dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Triage analysis saved for ticket {TicketId}", ticketId);
+
+        // Publish Redis notification for real-time UI updates
+        try
+        {
+            await _redis.GetSubscriber().PublishAsync(
+                RedisChannel.Literal($"ticket:{ticketId}"),
+                "Triaged");
+            _logger.LogDebug("Published Redis notification for ticket {TicketId}", ticketId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to publish Redis notification for ticket {TicketId}", ticketId);
+            // Don't throw - Redis notification is non-critical
+        }
 
         // Step 2: Route to appropriate specialist agent based on triage
         _logger.LogInformation("Step 2: Researching ticket {TicketId} (Recommended: {Agent})",

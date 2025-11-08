@@ -24,6 +24,9 @@ builder.AddKeyedAzureOpenAIClient("eShopSupportMini")
 // Add database
 builder.AddNpgsqlDbContext<AppDbContext>("backenddb");
 
+// Add Redis
+builder.AddRedisClient("redis");
+
 // Register services
 builder.Services.AddScoped<eShopSupport.AgentService.Services.DraftConfidenceCalculator>();
 

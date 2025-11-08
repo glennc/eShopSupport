@@ -70,15 +70,32 @@ public class AppDbContext : DbContext
         {
             // Check if the table exists by trying to query it
             await dbContext.TriageSettings.AnyAsync();
+
+            // Table exists, check for and add missing columns (for existing databases)
+            await dbContext.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE ""TriageSettings""
+                ADD COLUMN IF NOT EXISTS ""CurrentStatus"" VARCHAR(50) NOT NULL DEFAULT 'Idle',
+                ADD COLUMN IF NOT EXISTS ""LastRunTime"" TIMESTAMP WITHOUT TIME ZONE,
+                ADD COLUMN IF NOT EXISTS ""TicketsProcessedLastRun"" INTEGER NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS ""TotalTicketsProcessed"" INTEGER NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS ""CurrentActivity"" TEXT,
+                ADD COLUMN IF NOT EXISTS ""CurrentActivityStarted"" TIMESTAMP WITHOUT TIME ZONE;
+            ");
         }
         catch
         {
-            // Table doesn't exist, create it
+            // Table doesn't exist, create it with all columns
             await dbContext.Database.ExecuteSqlRawAsync(@"
                 CREATE TABLE IF NOT EXISTS ""TriageSettings"" (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""AutomaticTriageEnabled"" BOOLEAN NOT NULL,
-                    ""LastModified"" TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                    ""LastModified"" TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                    ""CurrentStatus"" VARCHAR(50) NOT NULL DEFAULT 'Idle',
+                    ""LastRunTime"" TIMESTAMP WITHOUT TIME ZONE,
+                    ""TicketsProcessedLastRun"" INTEGER NOT NULL DEFAULT 0,
+                    ""TotalTicketsProcessed"" INTEGER NOT NULL DEFAULT 0,
+                    ""CurrentActivity"" TEXT,
+                    ""CurrentActivityStarted"" TIMESTAMP WITHOUT TIME ZONE
                 );
             ");
         }

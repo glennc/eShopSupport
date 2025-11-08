@@ -1,6 +1,7 @@
 @page "/admin"
 @using Microsoft.FluentUI.AspNetCore.Components
 @using eShopSupport.ServiceDefaults.Clients.Backend
+@implements IDisposable
 @inject StaffBackendClient Backend
 @inject ILogger<Admin> Logger
 
@@ -37,6 +38,56 @@
                 <p class="last-modified">Last modified: @settings.LastModified.ToLocalTime().ToString("g")</p>
             }
         </div>
+
+        <div class="settings-section">
+            <h2>Triage Agent Status</h2>
+
+            <div class="status-row">
+                <span class="status-label">Current Status:</span>
+                <span class="status-badge status-@settings.CurrentStatus.ToLower()">
+                    @if (settings.CurrentStatus == "Processing")
+                    {
+                        <span class="spinner">⟳</span>
+                    }
+                    @settings.CurrentStatus
+                </span>
+            </div>
+
+            @if (!string.IsNullOrEmpty(settings.CurrentActivity))
+            {
+                <div class="status-row">
+                    <span class="status-label">Current Activity:</span>
+                    <span class="status-value">@settings.CurrentActivity</span>
+                </div>
+
+                @if (settings.CurrentActivityStarted.HasValue)
+                {
+                    var elapsed = DateTime.UtcNow - settings.CurrentActivityStarted.Value;
+                    <div class="status-row">
+                        <span class="status-label">Duration:</span>
+                        <span class="status-value">@elapsed.ToString(@"mm\:ss")</span>
+                    </div>
+                }
+            }
+
+            @if (settings.LastRunTime.HasValue)
+            {
+                <div class="status-row">
+                    <span class="status-label">Last Run:</span>
+                    <span class="status-value">@settings.LastRunTime.Value.ToLocalTime().ToString("g")</span>
+                </div>
+            }
+
+            <div class="status-row">
+                <span class="status-label">Tickets Processed (Last Run):</span>
+                <span class="status-value">@settings.TicketsProcessedLastRun</span>
+            </div>
+
+            <div class="status-row">
+                <span class="status-label">Total Tickets Processed:</span>
+                <span class="status-value">@settings.TotalTicketsProcessed</span>
+            </div>
+        </div>
     }
 </div>
 
@@ -72,16 +123,92 @@
         font-size: 0.875rem;
         color: var(--neutral-foreground-hint);
     }
+
+    .status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--neutral-layer-3);
+    }
+
+    .status-row:last-child {
+        border-bottom: none;
+    }
+
+    .status-label {
+        font-weight: 500;
+        color: var(--neutral-foreground-rest);
+    }
+
+    .status-value {
+        color: var(--neutral-foreground-rest);
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .status-badge.status-idle {
+        background-color: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .status-badge.status-running {
+        background-color: #e8f5e9;
+        color: #388e3c;
+    }
+
+    .status-badge.status-processing {
+        background-color: #fff3e0;
+        color: #f57c00;
+    }
+
+    .status-badge.status-error {
+        background-color: #ffebee;
+        color: #d32f2f;
+    }
+
+    .spinner {
+        display: inline-block;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
 </style>
 
 @code {
     private TriageSettingsResult? settings;
     private string? updateMessage;
     private MessageIntent messageIntent = MessageIntent.Success;
+    private System.Threading.Timer? refreshTimer;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadSettingsAsync();
+
+        // Auto-refresh every 5 seconds
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadSettingsAsync();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 
     private async Task LoadSettingsAsync()
@@ -96,6 +223,11 @@
             updateMessage = "Failed to load settings";
             messageIntent = MessageIntent.Error;
         }
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
     }
 
     private async Task OnAutomaticTriageToggled(bool newValue)

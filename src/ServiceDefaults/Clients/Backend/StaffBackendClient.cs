@@ -248,4 +248,10 @@ public record RegenerateDraftResult(
 public record TriageSettingsResult(
     int Id,
     bool AutomaticTriageEnabled,
-    DateTime LastModified);
+    DateTime LastModified,
+    string CurrentStatus,
+    DateTime? LastRunTime,
+    int TicketsProcessedLastRun,
+    int TotalTicketsProcessed,
+    string? CurrentActivity,
+    DateTime? CurrentActivityStarted);
