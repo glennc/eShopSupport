@@ -125,6 +125,28 @@ public class StaffBackendClient(HttpClient http)
             return null;
         }
     }
+
+    public Task<TriageSettingsResult?> GetTriageSettingsAsync()
+    {
+        return http.GetFromJsonAsync<TriageSettingsResult>("/api/settings/triage");
+    }
+
+    public async Task<TriageSettingsResult?> UpdateTriageSettingsAsync(bool automaticTriageEnabled)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("/api/settings/triage", new { AutomaticTriageEnabled = automaticTriageEnabled });
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<TriageSettingsResult>();
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
 
 public record ListTicketsRequest(TicketStatus? FilterByStatus, List<int>? FilterByCategoryIds, int? FilterByCustomerId, int StartIndex, int MaxResults, string? SortBy, bool? SortAscending);
@@ -222,3 +244,8 @@ public record RegenerateDraftResult(
     bool Success,
     int DraftId,
     DraftResult? Draft);
+
+public record TriageSettingsResult(
+    int Id,
+    bool AutomaticTriageEnabled,
+    DateTime LastModified);

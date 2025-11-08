@@ -1,0 +1,134 @@
+@page "/admin"
+@using Microsoft.FluentUI.AspNetCore.Components
+@using eShopSupport.ServiceDefaults.Clients.Backend
+@inject StaffBackendClient Backend
+@inject ILogger<Admin> Logger
+
+<Title>Admin Settings</Title>
+
+<div class="admin-page">
+    <h1>Admin Settings</h1>
+
+    @if (settings == null)
+    {
+        <FluentProgress />
+    }
+    else
+    {
+        <div class="settings-section">
+            <h2>Automatic Triage</h2>
+            <p>Enable automatic triage to process untriaged tickets in the background.</p>
+
+            <FluentSwitch
+                Value="settings.AutomaticTriageEnabled"
+                ValueChanged="OnAutomaticTriageToggled"
+                Label="@(settings.AutomaticTriageEnabled ? "Enabled" : "Disabled")"
+                Style="margin-top: 10px;" />
+
+            @if (updateMessage != null)
+            {
+                <FluentMessageBar Intent="@messageIntent" Style="margin-top: 10px;">
+                    @updateMessage
+                </FluentMessageBar>
+            }
+
+            @if (settings.LastModified != default)
+            {
+                <p class="last-modified">Last modified: @settings.LastModified.ToLocalTime().ToString("g")</p>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .admin-page {
+        padding: 2rem;
+        max-width: 800px;
+    }
+
+    .admin-page h1 {
+        margin-bottom: 2rem;
+    }
+
+    .settings-section {
+        background: var(--neutral-layer-2);
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .settings-section h2 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+    }
+
+    .settings-section p {
+        margin-bottom: 1rem;
+        color: var(--neutral-foreground-rest);
+    }
+
+    .last-modified {
+        margin-top: 1rem;
+        font-size: 0.875rem;
+        color: var(--neutral-foreground-hint);
+    }
+</style>
+
+@code {
+    private TriageSettingsResult? settings;
+    private string? updateMessage;
+    private MessageIntent messageIntent = MessageIntent.Success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettingsAsync();
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        try
+        {
+            settings = await Backend.GetTriageSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load triage settings");
+            updateMessage = "Failed to load settings";
+            messageIntent = MessageIntent.Error;
+        }
+    }
+
+    private async Task OnAutomaticTriageToggled(bool newValue)
+    {
+        if (settings == null) return;
+
+        try
+        {
+            var result = await Backend.UpdateTriageSettingsAsync(newValue);
+
+            if (result != null)
+            {
+                settings = result;
+                updateMessage = settings.AutomaticTriageEnabled
+                    ? "Automatic triage enabled successfully"
+                    : "Automatic triage disabled successfully";
+                messageIntent = MessageIntent.Success;
+                Logger.LogInformation("Automatic triage setting updated to: {Enabled}", settings.AutomaticTriageEnabled);
+            }
+            else
+            {
+                updateMessage = "Failed to update settings";
+                messageIntent = MessageIntent.Error;
+                Logger.LogError("Failed to update triage settings - null result");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating triage settings");
+            updateMessage = $"Error: {ex.Message}";
+            messageIntent = MessageIntent.Error;
+        }
+
+        StateHasChanged();
+    }
+}

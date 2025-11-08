@@ -34,6 +34,23 @@
     color: var(--neutral-foreground-rest);
 }
 
+::deep .admin-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-left: 0.5rem;
+    text-decoration: none;
+    color: var(--neutral-foreground-rest);
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+::deep .admin-link:hover {
+    background-color: var(--neutral-layer-2);
+}
+
 .app {
     display: flex;
     flex-direction: column;

@@ -61,5 +61,6 @@ app.MapTicketApiEndpoints();
 app.MapTicketMessagingApiEndpoints();
 app.MapCatalogApiEndpoints();
 app.MapTicketResearchApiEndpoints();
+app.MapTriageSettingsApiEndpoints();
 
 app.Run();

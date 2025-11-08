@@ -29,6 +29,8 @@ public class AppDbContext : DbContext
 
     public DbSet<TriageAnalysis> TriageAnalyses { get; set; }
 
+    public DbSet<TriageSettings> TriageSettings { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -53,9 +55,32 @@ public class AppDbContext : DbContext
         var createdDb = await pipeline.ExecuteAsync(async (CancellationToken ct) =>
             await dbContext.Database.EnsureCreatedAsync(ct));
 
+        // Ensure TriageSettings table exists (for existing databases that were created before this feature)
+        await EnsureTriageSettingsTableExists(dbContext);
+
         if (createdDb && !string.IsNullOrEmpty(initialImportDataDir))
         {
             await ImportInitialData(dbContext, initialImportDataDir);
+        }
+    }
+
+    private static async Task EnsureTriageSettingsTableExists(AppDbContext dbContext)
+    {
+        try
+        {
+            // Check if the table exists by trying to query it
+            await dbContext.TriageSettings.AnyAsync();
+        }
+        catch
+        {
+            // Table doesn't exist, create it
+            await dbContext.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS ""TriageSettings"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""AutomaticTriageEnabled"" BOOLEAN NOT NULL,
+                    ""LastModified"" TIMESTAMP WITHOUT TIME ZONE NOT NULL
+                );
+            ");
         }
     }
 

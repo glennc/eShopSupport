@@ -27,6 +27,9 @@ builder.AddNpgsqlDbContext<AppDbContext>("backenddb");
 // Register services
 builder.Services.AddScoped<eShopSupport.AgentService.Services.DraftConfidenceCalculator>();
 
+// Register background services
+builder.Services.AddHostedService<eShopSupport.AgentService.Services.AutomaticTriageService>();
+
 // Register agents
 builder.Services.AddScoped<TriageAgent>();
 builder.Services.AddScoped<ResearchAgent>();
