@@ -92,14 +92,20 @@ else
         else if (researchMessage != null)
         {
             <div class="message agent-research">
-                <div class="agent-research-header">
-                    <span class="agent-icon">🤖</span>
-                    <span class="agent-title">AI RESEARCH (Internal - Not sent to customer)</span>
-                    <span class="timestamp">@researchMessage.CreatedAt.ToShortTimeString()</span>
+                <div class="agent-research-header" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" @onclick="@(() => isResearchCollapsed = !isResearchCollapsed)">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="agent-icon">🤖</span>
+                        <span class="agent-title">AI RESEARCH (Internal - Not sent to customer)</span>
+                        <span class="timestamp">@researchMessage.CreatedAt.ToShortTimeString()</span>
+                    </div>
+                    <FluentButton Appearance="Appearance.Lightweight" IconStart="@(isResearchCollapsed ? new Icons.Regular.Size16.ChevronDown() : new Icons.Regular.Size16.ChevronUp())" Title="@(isResearchCollapsed ? "Expand research" : "Collapse research")" style="min-width: auto; padding: 4px;" />
                 </div>
-                <div class="agent-research-content">
-                    <pre style="white-space: pre-wrap; font-family: inherit;">@researchMessage.MessageText</pre>
-                </div>
+                @if (!isResearchCollapsed)
+                {
+                    <div class="agent-research-content">
+                        <pre style="white-space: pre-wrap; font-family: inherit;">@researchMessage.MessageText</pre>
+                    </div>
+                }
             </div>
         }
 
@@ -168,6 +174,8 @@ else
 }
 
 @code {
+    private bool isResearchCollapsed = true;
+
     [Parameter]
     public TicketDetailsResult? Ticket { get; set; }
 

@@ -8,12 +8,12 @@
 <Title>Ticket @TicketId</Title>
 
 <div class="ticket">
-    <FluentSplitter BarSize="6" BarHandle="false" Panel1MinSize="300px" Panel2Size="350px" Panel2MinSize="200px" Class="splitter">
-        <Panel1>
+    <FluentMultiSplitter Class="splitter" Style="width: 100%; height: 100%;">
+        <FluentMultiSplitterPane Min="300px" Size="1fr" Resizable="true">
             <div class="details">
                 @if (ticket is not null)
                 {
-                    <TicketDetails Ticket="@ticket" />
+                    <TicketDetails Ticket="@ticket" IsAssistantCollapsed="@isAssistantCollapsed" OnToggleAssistant="@(() => isAssistantCollapsed = !isAssistantCollapsed)" />
                 }
             </div>
             <div class="messages">
@@ -34,13 +34,13 @@
                     </div>
                 </EditForm>
             </div>
-        </Panel1>
-        <Panel2>
+        </FluentMultiSplitterPane>
+        <FluentMultiSplitterPane Size="350px" Min="200px" Collapsible="true" Collapsed="@isAssistantCollapsed">
             <div class="assistant">
                 <TicketAssistant Ticket="@ticket" OnSuggestedReply="@AcceptSuggestedReply" />
-            </div>  
-        </Panel2>
-    </FluentSplitter>
+            </div>
+        </FluentMultiSplitterPane>
+    </FluentMultiSplitter>
 </div>
 
 <FluentDialog @ref="rejectDialog" @bind-Hidden="@hideRejectDialog" Modal="true" TrapFocus="true">
@@ -70,6 +70,7 @@
     private FluentDialog? rejectDialog;
     private bool hideRejectDialog = true;
     private string? rejectionReason;
+    private bool isAssistantCollapsed = true;
 
     [Parameter]
     public int TicketId { get; set; }
@@ -78,7 +79,14 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // Reset state when navigating to a different ticket
         ticket = null;
+        triageInfo = null;
+        draftResponse = null;
+        draftId = null;
+        draftRejected = false;
+        isResearching = false;
+
         ticket = await Backend.GetTicketDetailsAsync(TicketId);
 
         SubscriptionChannel = RedisChannel.Literal($"ticket:{TicketId}");
@@ -90,9 +98,27 @@
     private async void TriggerTriageAsync()
     {
         // Check if triage already exists
-        if (ticket?.Messages.Any(m => m.MessageType == ServiceDefaults.Clients.Backend.MessageType.AgentResearch) == true)
+        var hasExistingResearch = ticket?.Messages.Any(m => m.MessageType == ServiceDefaults.Clients.Backend.MessageType.AgentResearch) == true;
+
+        if (hasExistingResearch)
         {
-            return; // Triage already exists
+            // Load existing triage data
+            _ = Task.Run(async () =>
+            {
+                var result = await Backend.TriggerTicketTriageAsync(TicketId);
+
+                await InvokeAsync(() =>
+                {
+                    if (result != null && result.Success)
+                    {
+                        triageInfo = result.Triage;
+                        draftResponse = result.Draft;
+                        draftId = result.DraftId;
+                    }
+                    StateHasChanged();
+                });
+            });
+            return;
         }
 
         // Show research in progress

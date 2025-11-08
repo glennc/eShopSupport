@@ -27,6 +27,8 @@ public class AppDbContext : DbContext
 
     public DbSet<DraftResponse> DraftResponses { get; set; }
 
+    public DbSet<TriageAnalysis> TriageAnalyses { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

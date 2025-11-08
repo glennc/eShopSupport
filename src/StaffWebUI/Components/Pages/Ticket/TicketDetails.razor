@@ -21,7 +21,7 @@
                 Label="Product" OptionText="@FindProductDisplayText" style="width: 100%; min-width: 12rem;"
                 OnOptionsSearch="LookupProductAsync" @bind-SelectedOptions:after="@MarkTicketProductModified" />
         </div>
-        <div class="actions">
+        <div class="actions" style="display: flex; gap: 0.5rem; align-items: center;">
             @if (!isSaving)
             {
                 <FluentButton Type="@ButtonType.Submit" Appearance="Appearance.Accent" IconStart="@saveIcon" Style="margin-top: 0.5rem">
@@ -33,11 +33,17 @@
                 <FluentProgressRing />
             }
         </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@chatIcon" OnClick="@OnToggleAssistant" Title="@(IsAssistantCollapsed ? "Show AI Assistant" : "Hide AI Assistant")" Style="margin-top: 0.5rem">
+                @(IsAssistantCollapsed ? "Show Assistant" : "Hide Assistant")
+            </FluentButton>
+        </div>
     </div>
 </EditForm>
 
 @code {
     private readonly Icon saveIcon = new Icons.Regular.Size20.Save();
+    private readonly Icon chatIcon = new Icons.Regular.Size20.Chat();
     EditContext editContext;
 
     readonly TicketType[] allTicketTypes = Enum.GetValues<TicketType>();
@@ -50,6 +56,12 @@
 
     [Parameter, EditorRequired]
     public TicketDetailsResult Ticket { get; set; } = default!;
+
+    [Parameter]
+    public bool IsAssistantCollapsed { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggleAssistant { get; set; }
 
     public TicketDetails() => editContext = new(this);
 
