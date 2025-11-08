@@ -21,6 +21,14 @@
                 <span class="spacer"></span>
                 @context.ShortSummary
             </LinkTemplateColumn>
+            <LinkTemplateColumn Href="@TicketHref" Title="Triage" Class="ticket-triage">
+                @if (context.TriageUrgencyLevel != null)
+                {
+                    <span class="triage-badge triage-@context.TriageUrgencyLevel?.ToLower()">
+                        @TriageUrgencyIcon(context.TriageUrgencyLevel) @context.TriageUrgencyLevel
+                    </span>
+                }
+            </LinkTemplateColumn>
             <LinkTemplateColumn Href="@TicketHref" Title="Satisfaction" Align="Align.Center" SortBy="@SortBySatisfaction" Class="ticket-satisfaction">
                 <SatisfactionIndicator Satisfaction="@context.CustomerSatisfaction" />
             </LinkTemplateColumn>
@@ -84,6 +92,15 @@
         TicketType.Question => "❔",
         TicketType.Complaint => "👎",
         TicketType.Returns => "📦",
+        _ => string.Empty,
+    };
+
+    static string TriageUrgencyIcon(string? urgencyLevel) => urgencyLevel?.ToLower() switch
+    {
+        "critical" => "🔴",
+        "high" => "🟠",
+        "medium" => "🟡",
+        "low" => "🟢",
         _ => string.Empty,
     };
 

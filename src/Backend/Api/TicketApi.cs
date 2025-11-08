@@ -45,7 +45,8 @@ public static class TicketApi
         }
 
         IQueryable<Ticket> itemsMatchingFilter = dbContext.Tickets
-            .Include(t => t.Product);
+            .Include(t => t.Product)
+            .Include(t => t.TriageAnalyses);
 
         if (request.FilterByCategoryIds is { Count: > 0 })
         {
@@ -104,7 +105,18 @@ public static class TicketApi
         var resultItems = itemsMatchingFilter
             .Skip(request.StartIndex)
             .Take(request.MaxResults)
-            .Select(t => new ListTicketsResultItem(t.TicketId, t.TicketType, t.TicketStatus, t.CreatedAt, t.Customer.FullName, t.Product == null ? null : t.Product.Model, t.ShortSummary, t.CustomerSatisfaction, t.Messages.Count));
+            .Select(t => new ListTicketsResultItem(
+                t.TicketId,
+                t.TicketType,
+                t.TicketStatus,
+                t.CreatedAt,
+                t.Customer.FullName,
+                t.Product == null ? null : t.Product.Model,
+                t.ShortSummary,
+                t.CustomerSatisfaction,
+                t.Messages.Count,
+                t.TriageAnalyses.OrderByDescending(ta => ta.CreatedAt).Select(ta => ta.UrgencyLevel).FirstOrDefault(),
+                t.TriageAnalyses.OrderByDescending(ta => ta.CreatedAt).Select(ta => ta.PriorityScore).FirstOrDefault()));
 
         return Results.Ok(new ListTicketsResult(await resultItems.ToListAsync(), await itemsMatchingFilter.CountAsync(), totalOpen, totalClosed));
     }

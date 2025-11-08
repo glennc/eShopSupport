@@ -32,4 +32,7 @@ public class Ticket
     public TicketType TicketType { get; set; }
 
     public List<Message> Messages { get; set; } = new();
+
+    [JsonIgnore]
+    public List<TriageAnalysis> TriageAnalyses { get; set; } = new();
 }

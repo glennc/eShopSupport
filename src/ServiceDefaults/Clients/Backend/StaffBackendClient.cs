@@ -132,7 +132,7 @@ public record ListTicketsRequest(TicketStatus? FilterByStatus, List<int>? Filter
 public record ListTicketsResult(ICollection<ListTicketsResultItem> Items, int TotalCount, int TotalOpenCount, int TotalClosedCount);
 
 public record ListTicketsResultItem(
-    int TicketId, TicketType TicketType, TicketStatus TicketStatus, DateTime CreatedAt, string CustomerFullName, string? ProductName, string? ShortSummary, int? CustomerSatisfaction, int NumMessages);
+    int TicketId, TicketType TicketType, TicketStatus TicketStatus, DateTime CreatedAt, string CustomerFullName, string? ProductName, string? ShortSummary, int? CustomerSatisfaction, int NumMessages, string? TriageUrgencyLevel, int? TriagePriorityScore);
 
 public record TicketDetailsResult(
     int TicketId, DateTime CreatedAt, int CustomerId, string CustomerFullName, string? ShortSummary, string? LongSummary,

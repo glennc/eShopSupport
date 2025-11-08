@@ -45,6 +45,10 @@
         width: 120px;
     }
 
+    ::deep th.ticket-triage {
+        width: 120px;
+    }
+
     ::deep th.ticket-customer {
         width: 20%;
     }
@@ -99,4 +103,32 @@
 ::deep .tickets-loading {
     margin: 20vh auto;
     width: 50vw;
+}
+
+::deep .triage-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+::deep .triage-critical {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: rgb(239, 68, 68);
+}
+
+::deep .triage-high {
+    background-color: rgba(249, 115, 22, 0.15);
+    color: rgb(249, 115, 22);
+}
+
+::deep .triage-medium {
+    background-color: rgba(234, 179, 8, 0.15);
+    color: rgb(234, 179, 8);
+}
+
+::deep .triage-low {
+    background-color: rgba(34, 197, 94, 0.15);
+    color: rgb(34, 197, 94);
 }
