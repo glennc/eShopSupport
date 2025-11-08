@@ -13,16 +13,16 @@ public class TriageAgent : DelegatingAIAgent
 {
     private readonly ILogger<TriageAgent> _logger;
 
-    public TriageAgent(IChatClient chatClient, IServiceProvider services, ILogger<TriageAgent> logger)
-        : base(CreateConfiguredAgent(chatClient, services))
+    public TriageAgent([FromKeyedServices("eShopSupportModel")] IChatClient chatClient,
+                                                                AppDbContext dbContext,
+                                                                ILogger<TriageAgent> logger)
+        : base(CreateConfiguredAgent(chatClient, dbContext))
     {
         _logger = logger;
     }
 
-    private static ChatClientAgent CreateConfiguredAgent(IChatClient chatClient, IServiceProvider services)
+    private static ChatClientAgent CreateConfiguredAgent(IChatClient chatClient, AppDbContext dbContext)
     {
-        var dbContext = services.GetRequiredService<AppDbContext>();
-
         // Prepare tools for the agent
         var triageTools = new TriageTools(dbContext);
         var ticketTools = new TicketTools(dbContext);

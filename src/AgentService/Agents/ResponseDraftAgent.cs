@@ -14,7 +14,7 @@ public class ResponseDraftAgent : DelegatingAIAgent
     private readonly DraftConfidenceCalculator _confidenceCalculator;
 
     public ResponseDraftAgent(
-        IChatClient chatClient,
+        [FromKeyedServices("eShopSupportModel")]IChatClient chatClient,
         DraftConfidenceCalculator confidenceCalculator,
         ILogger<ResponseDraftAgent> logger)
         : base(CreateConfiguredAgent(chatClient))

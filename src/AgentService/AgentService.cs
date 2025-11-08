@@ -10,16 +10,13 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 
-// Add chat completion service (Azure OpenAI) - main model for agents (GPT-4.1)
-// This registers the default (non-keyed) IChatClient that TriageAgent, ResearchAgent, and ResponseDraftAgent will use
-builder.AddAzureOpenAIClient("eShopSupport")
-        .AddChatClient("eShopSupport")
+builder.AddKeyedAzureOpenAIClient("eShopSupportModel")
+        .AddKeyedChatClient("eShopSupportModel")
         .UseFunctionInvocation()
         .UseCachingForTest()
         .UseOpenTelemetry(configure: c => c.EnableSensitiveData = true);
 
-builder
-    .AddKeyedAzureOpenAIClient("eShopSupportMini")
+builder.AddKeyedAzureOpenAIClient("eShopSupportMini")
     .AddKeyedChatClient("eShopSupportMini","eShopSupportMini")
     .UseFunctionInvocation()
     .UseOpenTelemetry(configure: c => c.EnableSensitiveData = true);

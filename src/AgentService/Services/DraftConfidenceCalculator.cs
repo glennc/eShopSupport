@@ -35,8 +35,12 @@ public class DraftConfidenceCalculator
         {
             var evaluationPrompt = BuildEvaluationPrompt(research, draftContent);
 
-            // Use simple string-based request - Phi-4-mini doesn't support structured outputs well
-            var chatOptions = new ChatOptions { Temperature = 0.2f };
+            // Request JSON format output
+            var chatOptions = new ChatOptions
+            {
+                Temperature = 0.2f,
+                ResponseFormat = ChatResponseFormat.Json
+            };
             var chatResponse = await _confidenceScorer.GetResponseAsync(
                 evaluationPrompt,
                 chatOptions,
@@ -46,9 +50,12 @@ public class DraftConfidenceCalculator
 
             _logger.LogDebug("Received confidence evaluation response: {Response}", responseText);
 
+            // Strip markdown code fences if present (defensive fallback)
+            var jsonText = StripMarkdownCodeFences(responseText);
+
             // Parse the JSON response manually
             var evaluation = JsonSerializer.Deserialize<ConfidenceEvaluation>(
-                responseText,
+                jsonText,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             if (evaluation == null)
@@ -143,6 +150,33 @@ public class DraftConfidenceCalculator
             Be specific in your factors - explain exactly what you found.
             The score should reflect the sum of positive and negative factors, clamped between 0.0 and 1.0.
             """;
+    }
+
+    private static string StripMarkdownCodeFences(string text)
+    {
+        var trimmed = text.Trim();
+
+        // Check if the text starts with markdown code fence
+        if (trimmed.StartsWith("```"))
+        {
+            // Find the end of the first line (which contains ```json or just ```)
+            var firstNewline = trimmed.IndexOf('\n');
+            if (firstNewline > 0)
+            {
+                // Remove first line
+                trimmed = trimmed.Substring(firstNewline + 1);
+            }
+
+            // Remove trailing ```
+            if (trimmed.EndsWith("```"))
+            {
+                trimmed = trimmed.Substring(0, trimmed.Length - 3);
+            }
+
+            return trimmed.Trim();
+        }
+
+        return trimmed;
     }
 
     private ConfidenceResult FallbackConfidenceCalculation(

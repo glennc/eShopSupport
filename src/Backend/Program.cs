@@ -35,7 +35,7 @@ builder.Services.AddHttpClient<AgentServiceClient>(c =>
 });
 builder.AddAzureBlobClient("eshopsupport-blobs");
 
-builder.AddChatCompletionService("eShopSupport");
+builder.AddChatCompletionService("eShopSupportModel");
 builder.AddRedisClient("redis");
 
 JsonWebTokenHandler.DefaultInboundClaimTypeMap.Remove("sub");

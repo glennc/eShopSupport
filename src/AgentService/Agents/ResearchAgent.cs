@@ -13,7 +13,9 @@ public class ResearchAgent : DelegatingAIAgent
 {
     private readonly ILogger<ResearchAgent> _logger;
 
-    public ResearchAgent(IChatClient chatClient, IServiceProvider services, ILogger<ResearchAgent> logger, AppDbContext dbContext)
+    public ResearchAgent([FromKeyedServices("eShopSupportModel")] IChatClient chatClient,
+                         ILogger<ResearchAgent> logger,
+                         AppDbContext dbContext)
         : base(CreateConfiguredAgent(chatClient, dbContext))
     {
         _logger = logger;
