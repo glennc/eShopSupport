@@ -186,5 +186,6 @@ public class DraftResponseResult
 {
     public required string DraftContent { get; set; }
     public double Confidence { get; set; }
+    public List<string> ConfidenceFactors { get; set; } = new();
     public string? Rationale { get; set; }
 }

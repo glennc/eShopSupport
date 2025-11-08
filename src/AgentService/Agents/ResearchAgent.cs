@@ -1,4 +1,3 @@
-using eShopSupport.AgentService.ContextProviders;
 using eShopSupport.AgentService.Models;
 using eShopSupport.AgentService.Tools;
 using eShopSupport.Backend.Data;
@@ -10,28 +9,20 @@ namespace eShopSupport.AgentService.Agents;
 /// <summary>
 /// Agent that performs comprehensive research on a ticket to assist support staff
 /// </summary>
-public class ResearchAgent
+public class ResearchAgent : DelegatingAIAgent
 {
-    private readonly IChatClient _chatClient;
-    private readonly AppDbContext _dbContext;
     private readonly ILogger<ResearchAgent> _logger;
 
-    public ResearchAgent(IChatClient chatClient, AppDbContext dbContext, ILogger<ResearchAgent> logger)
+    public ResearchAgent(IChatClient chatClient, IServiceProvider services, ILogger<ResearchAgent> logger, AppDbContext dbContext)
+        : base(CreateConfiguredAgent(chatClient, dbContext))
     {
-        _chatClient = chatClient;
-        _dbContext = dbContext;
         _logger = logger;
     }
 
-    /// <summary>
-    /// Conducts research on a ticket and returns structured findings
-    /// </summary>
-    public async Task<TicketResearchResult> ResearchTicketAsync(int ticketId, CancellationToken cancellationToken = default)
+    private static ChatClientAgent CreateConfiguredAgent(IChatClient chatClient, AppDbContext dbContext)
     {
-        _logger.LogInformation("Starting research for ticket {TicketId}", ticketId);
-
         // Prepare tools for the agent
-        var tools = new TicketTools(_dbContext);
+        var tools = new TicketTools(dbContext);
         var availableTools = new[]
         {
             AIFunctionFactory.Create(tools.GetCustomerContext),
@@ -40,8 +31,8 @@ public class ResearchAgent
             AIFunctionFactory.Create(tools.GetTicketDetails)
         };
 
-        // Create the agent with instructions, tools, and context provider
-        var agent = _chatClient.CreateAIAgent(new ChatClientAgentOptions
+        // Create the agent with instructions and tools - configured once at startup
+        return chatClient.CreateAIAgent(new ChatClientAgentOptions
         {
             Name = "research_agent",
             Instructions = """
@@ -81,21 +72,25 @@ public class ResearchAgent
                 Temperature = 0.3f,
                 ResponseFormat = ChatResponseFormat.Json,
                 AdditionalProperties = new() { ["seed"] = 0 }
-            },
-            // Inject ticket context dynamically
-            AIContextProviderFactory = _ => new TicketContextProvider(_dbContext, ticketId)
+            }
         });
+    }
 
-        _logger.LogInformation("Created agent with {ToolCount} tools available", availableTools.Length);
+    /// <summary>
+    /// Conducts research on a ticket and returns structured findings
+    /// </summary>
+    public async Task<TicketResearchResult> ResearchTicketAsync(int ticketId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Starting research for ticket {TicketId}", ticketId);
 
         // Create a new thread for this research session
-        var thread = agent.GetNewThread();
+        var thread = GetNewThread();
 
         // Execute the agent
         _logger.LogInformation("Executing agent for ticket {TicketId}", ticketId);
 
-        var response = await agent.RunAsync(
-            "Please research this ticket thoroughly and provide your findings in the required JSON format.",
+        var response = await RunAsync(
+            $"Please research ticket {ticketId} thoroughly and provide your findings in the required JSON format.",
             thread);
 
         var responseText = response.ToString();

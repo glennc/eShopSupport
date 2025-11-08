@@ -1,4 +1,3 @@
-using eShopSupport.AgentService.ContextProviders;
 using eShopSupport.AgentService.Models;
 using eShopSupport.AgentService.Tools;
 using eShopSupport.Backend.Data;
@@ -10,29 +9,23 @@ namespace eShopSupport.AgentService.Agents;
 /// <summary>
 /// Agent that performs initial triage on incoming tickets to classify, prioritize, and route them appropriately
 /// </summary>
-public class TriageAgent
+public class TriageAgent : DelegatingAIAgent
 {
-    private readonly IChatClient _chatClient;
-    private readonly AppDbContext _dbContext;
     private readonly ILogger<TriageAgent> _logger;
 
-    public TriageAgent(IChatClient chatClient, AppDbContext dbContext, ILogger<TriageAgent> logger)
+    public TriageAgent(IChatClient chatClient, IServiceProvider services, ILogger<TriageAgent> logger)
+        : base(CreateConfiguredAgent(chatClient, services))
     {
-        _chatClient = chatClient;
-        _dbContext = dbContext;
         _logger = logger;
     }
 
-    /// <summary>
-    /// Performs triage on a ticket and returns classification, priority, and routing recommendations
-    /// </summary>
-    public async Task<TicketTriageResult> TriageTicketAsync(int ticketId, CancellationToken cancellationToken = default)
+    private static ChatClientAgent CreateConfiguredAgent(IChatClient chatClient, IServiceProvider services)
     {
-        _logger.LogInformation("Starting triage for ticket {TicketId}", ticketId);
+        var dbContext = services.GetRequiredService<AppDbContext>();
 
         // Prepare tools for the agent
-        var triageTools = new TriageTools(_dbContext);
-        var ticketTools = new TicketTools(_dbContext);
+        var triageTools = new TriageTools(dbContext);
+        var ticketTools = new TicketTools(dbContext);
 
         var availableTools = new[]
         {
@@ -43,8 +36,8 @@ public class TriageAgent
             AIFunctionFactory.Create(ticketTools.GetTicketDetails)
         };
 
-        // Create the agent with instructions, tools, and context provider
-        var agent = _chatClient.CreateAIAgent(new ChatClientAgentOptions
+        // Create the agent with instructions and tools - configured once at startup
+        return chatClient.CreateAIAgent(new ChatClientAgentOptions
         {
             Name = "triage_agent",
             Instructions = """
@@ -109,20 +102,24 @@ public class TriageAgent
                 Temperature = 0.2f, // Lower temperature for more consistent triage decisions
                 ResponseFormat = ChatResponseFormat.Json,
                 AdditionalProperties = new() { ["seed"] = 0 }
-            },
-            // Inject ticket context dynamically
-            AIContextProviderFactory = _ => new TicketContextProvider(_dbContext, ticketId)
+            }
         });
+    }
 
-        _logger.LogInformation("Created triage agent with {ToolCount} tools available", availableTools.Length);
+    /// <summary>
+    /// Performs triage on a ticket and returns classification, priority, and routing recommendations
+    /// </summary>
+    public async Task<TicketTriageResult> TriageTicketAsync(int ticketId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Starting triage for ticket {TicketId}", ticketId);
 
         // Create a new thread for this triage session
-        var thread = agent.GetNewThread();
+        var thread = GetNewThread();
 
         // Execute the agent
         _logger.LogInformation("Executing triage agent for ticket {TicketId}", ticketId);
 
-        var response = await agent.RunAsync(
+        var response = await RunAsync(
             $"Please perform triage on ticket {ticketId} and provide your analysis in the required JSON format.",
             thread);
 

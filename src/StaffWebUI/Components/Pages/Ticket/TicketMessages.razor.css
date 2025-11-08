@@ -259,6 +259,8 @@ html.dark-mode .agent-draft-header {
     font-weight: 600;
     color: #15803d;
     font-size: 0.875rem;
+    cursor: help;
+    text-decoration: underline dotted;
 }
 
 html.dark-mode .agent-draft-header .confidence {

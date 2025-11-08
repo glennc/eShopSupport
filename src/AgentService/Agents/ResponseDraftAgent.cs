@@ -1,4 +1,5 @@
 using eShopSupport.AgentService.Models;
+using eShopSupport.AgentService.Services;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
@@ -7,29 +8,25 @@ namespace eShopSupport.AgentService.Agents;
 /// <summary>
 /// Agent that generates draft responses for staff to review and approve
 /// </summary>
-public class ResponseDraftAgent
+public class ResponseDraftAgent : DelegatingAIAgent
 {
-    private readonly IChatClient _chatClient;
     private readonly ILogger<ResponseDraftAgent> _logger;
+    private readonly DraftConfidenceCalculator _confidenceCalculator;
 
-    public ResponseDraftAgent(IChatClient chatClient, ILogger<ResponseDraftAgent> logger)
+    public ResponseDraftAgent(
+        IChatClient chatClient,
+        DraftConfidenceCalculator confidenceCalculator,
+        ILogger<ResponseDraftAgent> logger)
+        : base(CreateConfiguredAgent(chatClient))
     {
-        _chatClient = chatClient;
         _logger = logger;
+        _confidenceCalculator = confidenceCalculator;
     }
 
-    /// <summary>
-    /// Generates a draft response based on research findings
-    /// </summary>
-    public async Task<DraftResponseResult> GenerateDraftAsync(
-        TicketResearchResult research,
-        int ticketId,
-        CancellationToken cancellationToken = default)
+    private static ChatClientAgent CreateConfiguredAgent(IChatClient chatClient)
     {
-        _logger.LogInformation("Generating draft response for ticket {TicketId}", ticketId);
-
-        // Create the agent with instructions for drafting responses
-        var agent = _chatClient.CreateAIAgent(new ChatClientAgentOptions
+        // Create the agent with instructions for drafting responses - configured once at startup
+        return chatClient.CreateAIAgent(new ChatClientAgentOptions
         {
             Name = "response_draft_agent",
             Instructions = """
@@ -56,14 +53,16 @@ public class ResponseDraftAgent
 
                 You will receive research findings about the ticket. Use this information to craft a helpful response.
 
-                Return your draft in this exact JSON structure:
+                IMPORTANT: You must return ONLY valid JSON in this EXACT structure with these EXACT field names:
                 {
                   "draftContent": "The complete draft response to send to the customer",
-                  "confidence": 0.85,
                   "rationale": "Brief explanation of why you wrote the response this way and what key points you addressed"
                 }
 
-                The confidence should be between 0.0 and 1.0, representing how confident you are that this response fully addresses the customer's needs.
+                Do NOT use any other field names like "response", "content", "message", etc.
+                Use ONLY "draftContent" and "rationale" as shown above.
+
+                Note: The confidence score will be calculated automatically based on objective criteria.
                 """,
             ChatOptions = new ChatOptions
             {
@@ -71,11 +70,20 @@ public class ResponseDraftAgent
                 ResponseFormat = ChatResponseFormat.Json
             }
         });
+    }
 
-        _logger.LogInformation("Created draft agent");
+    /// <summary>
+    /// Generates a draft response based on research findings
+    /// </summary>
+    public async Task<DraftResponseResult> GenerateDraftAsync(
+        TicketResearchResult research,
+        int ticketId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Generating draft response for ticket {TicketId}", ticketId);
 
         // Create a new thread for this drafting session
-        var thread = agent.GetNewThread();
+        var thread = GetNewThread();
 
         // Build the context from research
         var researchContext = $"""
@@ -95,7 +103,7 @@ public class ResponseDraftAgent
 
         _logger.LogInformation("Executing draft agent for ticket {TicketId}", ticketId);
 
-        var response = await agent.RunAsync(researchContext, thread);
+        var response = await RunAsync(researchContext, thread);
 
         var responseText = response.ToString();
 
@@ -104,29 +112,52 @@ public class ResponseDraftAgent
         // Parse the structured response
         try
         {
-            var result = System.Text.Json.JsonSerializer.Deserialize<DraftResponseResult>(
+            // Parse the LLM response (without confidence field)
+            var parsedResponse = System.Text.Json.JsonSerializer.Deserialize<DraftResponseParsed>(
                 responseText,
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            if (result == null)
+            if (parsedResponse == null || string.IsNullOrWhiteSpace(parsedResponse.DraftContent))
             {
-                throw new InvalidOperationException("Failed to deserialize draft result");
+                throw new InvalidOperationException("Failed to deserialize draft result or draft content is empty");
             }
 
-            _logger.LogInformation("Draft generated successfully for ticket {TicketId} with confidence {Confidence:F2}",
-                ticketId, result.Confidence);
+            // Calculate objective confidence score using Phi-4-mini-instruct
+            var confidenceResult = await _confidenceCalculator.CalculateConfidenceAsync(
+                research,
+                parsedResponse.DraftContent,
+                ticketId,
+                cancellationToken);
 
-            return result;
+            _logger.LogInformation(
+                "Draft generated successfully for ticket {TicketId} with calculated confidence {Confidence:P0}",
+                ticketId, confidenceResult.Score);
+
+            return new DraftResponseResult
+            {
+                DraftContent = parsedResponse.DraftContent,
+                Confidence = confidenceResult.Score,
+                ConfidenceFactors = confidenceResult.Factors,
+                Rationale = parsedResponse.Rationale
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to parse draft result. Raw response: {Response}", responseText);
 
             // Fallback: return a basic draft with low confidence
+            var fallbackDraft = "Thank you for contacting AdventureWorks support. We have reviewed your issue and a support specialist will respond shortly with detailed assistance.";
+            var fallbackConfidenceResult = await _confidenceCalculator.CalculateConfidenceAsync(
+                research,
+                fallbackDraft,
+                ticketId,
+                cancellationToken);
+
             return new DraftResponseResult
             {
-                DraftContent = "Thank you for contacting AdventureWorks support. We have reviewed your issue and a support specialist will respond shortly with detailed assistance.",
-                Confidence = 0.3,
+                DraftContent = fallbackDraft,
+                Confidence = Math.Min(fallbackConfidenceResult.Score, 0.3), // Cap at 30% for fallback
+                ConfidenceFactors = fallbackConfidenceResult.Factors,
                 Rationale = "Unable to parse agent response. Generic fallback draft generated - manual review strongly recommended."
             };
         }
@@ -134,11 +165,21 @@ public class ResponseDraftAgent
 }
 
 /// <summary>
-/// Result from the ResponseDraftAgent
+/// Internal model for parsing LLM response (without confidence)
+/// </summary>
+internal class DraftResponseParsed
+{
+    public required string DraftContent { get; set; }
+    public string? Rationale { get; set; }
+}
+
+/// <summary>
+/// Result from the ResponseDraftAgent with calculated confidence
 /// </summary>
 public class DraftResponseResult
 {
     public required string DraftContent { get; set; }
     public double Confidence { get; set; }
+    public List<string> ConfidenceFactors { get; set; } = new();
     public string? Rationale { get; set; }
 }

@@ -32,6 +32,11 @@ public class DraftResponse
     public double Confidence { get; set; }
 
     /// <summary>
+    /// Factors that contributed to the confidence calculation
+    /// </summary>
+    public string? ConfidenceFactors { get; set; }
+
+    /// <summary>
     /// Why the agent generated this response
     /// </summary>
     public string? Rationale { get; set; }

@@ -110,7 +110,7 @@ else
                 <div class="agent-draft-header">
                     <span class="agent-icon">✍️</span>
                     <span class="agent-title">AI DRAFT RESPONSE</span>
-                    <span class="confidence">Confidence: @((DraftResponse.Confidence * 100).ToString("F0"))%</span>
+                    <span class="confidence" title="@GetConfidenceFactorsTooltip()">Confidence: @((DraftResponse.Confidence * 100).ToString("F0"))%</span>
                 </div>
                 <div class="agent-draft-content">
                     <div class="draft-text">@DraftResponse.DraftContent</div>
@@ -194,4 +194,14 @@ else
 
     [Parameter]
     public EventCallback OnRegenerateDraft { get; set; }
+
+    private string GetConfidenceFactorsTooltip()
+    {
+        if (DraftResponse?.ConfidenceFactors == null || DraftResponse.ConfidenceFactors.Count == 0)
+        {
+            return "No confidence factors available";
+        }
+
+        return "Confidence Calculation:\n" + string.Join("\n", DraftResponse.ConfidenceFactors);
+    }
 }

@@ -179,6 +179,7 @@ public static class ResearchApi
                     AgentExecutionId = executionId,
                     Content = result.DraftContent,
                     Confidence = result.Confidence,
+                    ConfidenceFactors = System.Text.Json.JsonSerializer.Serialize(result.ConfidenceFactors),
                     Rationale = result.Rationale,
                     Status = "pending"
                 };
@@ -367,6 +368,7 @@ public static class ResearchApi
                     AgentExecutionId = draftExecution.AgentExecutionId,
                     Content = draftResult.DraftContent,
                     Confidence = draftResult.Confidence,
+                    ConfidenceFactors = System.Text.Json.JsonSerializer.Serialize(draftResult.ConfidenceFactors),
                     Rationale = draftResult.Rationale,
                     Status = "pending"
                 };

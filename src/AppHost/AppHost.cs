@@ -29,8 +29,10 @@ var foundryName = builder.AddParameter("foundryName");
 var resourceGroup = builder.AddParameter("resourceGroup");
 
 var foundry = builder.AddAzureAIFoundry("foundry")
-    .AsExisting(foundryName, resourceGroup)
-    .AddDeployment("eShopSupport", AIFoundryModel.OpenAI.Gpt41);
+    .AsExisting(foundryName, resourceGroup);
+
+var eShopSupportModel = foundry.AddDeployment("eShopSupportModel", AIFoundryModel.OpenAI.Gpt41);
+var eShopSupportMini = foundry.AddDeployment("eShopSupportMini", AIFoundryModel.Microsoft.Phi4MiniInstruct);
 
 var storage = builder.AddAzureStorage("eshopsupport-storage");
 if (builder.Environment.IsDevelopment())
@@ -53,13 +55,14 @@ var redis = builder.AddRedis("redis");
 
 var agentService = builder.AddProject<AgentService>("agentservice")
     .WithReference(backendDb)
-    .WithReference(foundry)
+    .WithReference(eShopSupportModel)
     .WithReference(vectorDb)
+    .WithReference(eShopSupportMini)
     .WithReference(redis);
 
 var backend = builder.AddProject<Backend>("backend")
     .WithReference(backendDb)
-    .WithReference(foundry)
+    .WithReference(eShopSupportModel)
     .WithReference(blobStorage)
     .WithReference(vectorDb)
     .WithReference(pythonInference)

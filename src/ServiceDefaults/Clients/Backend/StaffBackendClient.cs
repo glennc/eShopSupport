@@ -215,6 +215,7 @@ public record TriageInfo(
 public record DraftResult(
     string DraftContent,
     double Confidence,
+    List<string> ConfidenceFactors,
     string? Rationale);
 
 public record RegenerateDraftResult(
